@@ -98,4 +98,59 @@
 #endif
 C_ASSERT(-1 == static_cast<int>(0xffffffff));
 
+#ifdef NEEDS_INT_DEFINED
+#define __int8 char
+#define __int16 short
+#define __int32 int
+#define __int64 long long
+#endif
+
+namespace msl {
+  namespace safeint3 {
+    enum SafeIntError {
+      SafeintNoError = 0,
+      SafeIntArithmeticOverflow,
+      SafeIntDivideByZero
+    };
+  }
+}
+
+#if defined SAFEINT_REMOVE_NOTHROW
+#define SAFEINT_NOTHROW
+#else
+#define SAFEINT_NOTHROW throw()
+#endif
+
+namespace msl
+{
+
+namespace safeint3
+{
+  
+#if !defined SAFEINT_ASSERT
+#include <assert.h>
+#define SAFEINT_ASSERT(x) assert(x)
+#endif
+
+#if defined SAFEINT_ASSERT_ON_EXCEPTION
+inline void SafeIntExceptionAssert() SAFEINT_NOTHROW {SAFEINT_ASSERT(false);}
+#else
+inline void SafeIntExceptionAssert() SAFEINT_NOTHROW {}
+#endif
+
+#if SAFEINT_COMPILER == GCC_COMPILER || SAFEINT_COMPILER == CLANG_COMPILER
+#define SAFEINT_NORETURN __attribute__((noreturn))
+#define SAFEINT_STDCALL
+#define SAFEINT_VISIBLE __attribute__((__visibility__("default")))
+#define SAFEINT_WEAK __attribute__((weak))
+#else
+#define SAFEINT_NORETURN __declspec(noreturn)
+#define SAFEINT_STDCALL __stdcall
+#define SAFEINT_VISIBLE
+#define SAFEINT_WEAK 
+#endif
+
+}
+}
+
 #endif /* INCLUDE_CPPREST_DETAILS_SAFEINT3_HPP_ */
