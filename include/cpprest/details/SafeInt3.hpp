@@ -392,7 +392,82 @@ public:
   const static T maxInt = static_cast<T>(SafeIntMinMax<isSigned,bitCount>::max);
   const static T minInt = static_cast<T>(SafeIntMinMax<isSigned,bitCount>::min);
 };
-  
+
+template<typename T>
+const T IntTraits<T>::maxInt;
+template<typename T>
+const T IntTraits<T>::minInt;
+
+template<typename T, typename U>class SafeIntCompare
+{
+public:
+  enum
+  {
+    isBothSigned = (IntTraits<T>::isSigned && IntTraits<U>::isSigned),
+    isBothUnSigned = (!IntTraits<T>::isSigned && !IntTraits<U>::isSigned),
+    isLikeSigned = ((bool)(IntTraits<T>::isSigned) == (bool)(IntTraits<U>::isSigned)),
+    isCastOK = ((isLikeSigned && sizeof(T) >= sizeof(U)) ||
+                (IntTraits<T>::isSigned && sizeof(T) > sizeof(U))),
+    isBothLT32Bit = (IntTraits<T>::isLT32Bit && IntTraits<U>::isLT32Bit),
+    isBothLT64Bit = (IntTraits<T>::isLT64Bit && IntTraits<U>::isLT64Bit)
+    };
+};
+
+template<typename T, typename U>  class IntRegion
+{
+public:
+  enum
+  {
+        IntZone_UintLT32_UintLT32 = SafeIntCompare< T,U >::isBothUnsigned && SafeIntCompare< T,U >::isBothLT32Bit,
+        IntZone_Uint32_UintLT64   = SafeIntCompare< T,U >::isBothUnsigned && IntTraits< T >::is32Bit && IntTraits< U >::isLT64Bit,
+        IntZone_UintLT32_Uint32   = SafeIntCompare< T,U >::isBothUnsigned && IntTraits< T >::isLT32Bit && IntTraits< U >::is32Bit,
+        IntZone_Uint64_Uint       = SafeIntCompare< T,U >::isBothUnsigned && IntTraits< T >::is64Bit,
+        IntZone_UintLT64_Uint64    = SafeIntCompare< T,U >::isBothUnsigned && IntTraits< T >::isLT64Bit && IntTraits< U >::is64Bit,
+
+        IntZone_UintLT32_IntLT32  = !IntTraits< T >::isSigned && IntTraits< U >::isSigned && SafeIntCompare< T,U >::isBothLT32Bit,
+        IntZone_Uint32_IntLT64    = IntTraits< T >::isUint32 && IntTraits< U >::isSigned && IntTraits< U >::isLT64Bit,
+        IntZone_UintLT32_Int32    = !IntTraits< T >::isSigned && IntTraits< T >::isLT32Bit && IntTraits< U >::isInt32,
+        IntZone_Uint64_Int        = IntTraits< T >::isUint64 && IntTraits< U >::isSigned && IntTraits< U >::isLT64Bit,
+        IntZone_UintLT64_Int64    = !IntTraits< T >::isSigned && IntTraits< T >::isLT64Bit && IntTraits< U >::isInt64,
+        IntZone_Uint64_Int64      = IntTraits< T >::isUint64 && IntTraits< U >::isInt64,
+
+        IntZone_IntLT32_IntLT32   = SafeIntCompare< T,U >::isBothSigned && SafeIntCompare< T, U >::isBothLT32Bit,
+        IntZone_Int32_IntLT64     = SafeIntCompare< T,U >::isBothSigned && IntTraits< T >::is32Bit && IntTraits< U >::isLT64Bit,
+        IntZone_IntLT32_Int32     = SafeIntCompare< T,U >::isBothSigned && IntTraits< T >::isLT32Bit && IntTraits< U >::is32Bit,
+        IntZone_Int64_Int64       = SafeIntCompare< T,U >::isBothSigned && IntTraits< T >::isInt64 && IntTraits< U >::isInt64,
+        IntZone_Int64_Int         = SafeIntCompare< T,U >::isBothSigned && IntTraits< T >::is64Bit && IntTraits< U >::isLT64Bit,
+        IntZone_IntLT64_Int64     = SafeIntCompare< T,U >::isBothSigned && IntTraits< T >::isLT64Bit && IntTraits< U >::is64Bit,
+
+        IntZone_IntLT32_UintLT32  = IntTraits< T >::isSigned && !IntTraits< U >::isSigned && SafeIntCompare< T,U >::isBothLT32Bit,
+        IntZone_Int32_UintLT32    = IntTraits< T >::isInt32 && !IntTraits< U >::isSigned && IntTraits< U >::isLT32Bit,
+        IntZone_IntLT64_Uint32    = IntTraits< T >::isSigned && IntTraits< T >::isLT64Bit && IntTraits< U >::isUint32,
+        IntZone_Int64_UintLT64    = IntTraits< T >::isInt64 && !IntTraits< U >::isSigned && IntTraits< U >::isLT64Bit,
+        IntZone_Int_Uint64        = IntTraits< T >::isSigned && IntTraits< U >::isUint64 && IntTraits< T >::isLT64Bit,
+        IntZone_Int64_Uint64 = IntTraits< T >::isInt64 && IntTraits< U >::isUint64
+  };
+};
+
+/*
+The non-throwing version are for use by the helper functions that return success and failure
+Some of the non-throwing functions are not used, but are maintained for completeness
+*/
+enum AbsMethod
+{
+  AbsMethodInt,
+  AbsMethodInt64,
+  AbsMethodNoop
+};
+
+template <typename T>
+class GetAbsMethod
+{
+public:
+  enum
+  {
+    method = IntTraits<T>::isLT64Bit && IntTraits<T>::isSigned ? AbsMethodInt :
+             IntTraits<T>::isInt64 ? AbsMethodInt64 : AbsMethodNoop
+  };
+};	
 }
 }
 
