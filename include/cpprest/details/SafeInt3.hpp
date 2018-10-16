@@ -126,7 +126,7 @@ namespace msl
 
 namespace safeint3
 {
-  
+
 #if !defined SAFEINT_ASSERT
 #include <assert.h>
 #define SAFEINT_ASSERT(x) assert(x)
@@ -147,7 +147,7 @@ inline void SafeIntExceptionAssert() SAFEINT_NOTHROW {}
 #define SAFEINT_NORETURN __declspec(noreturn)
 #define SAFEINT_STDCALL __stdcall
 #define SAFEINT_VISIBLE
-#define SAFEINT_WEAK 
+#define SAFEINT_WEAK
 #endif
 
 class SAFEINT_VISIBLE SafeIntException
@@ -260,6 +260,8 @@ template<int method>class CompileConst;
 template<> class CompileConst<true> {public: static bool Value() SAFEINT_NOTHROW {return true;}};
 template<> class CompileConst<false> {public: static bool Value() SAFEINT_NOTHROW {return false;}};
 
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 /*
 With following template, we are not allowed to cast a float to an enum.
 In this case, if we happen to assign an enum to a SafeInt of some type, it will not compile
@@ -310,6 +312,8 @@ public:
   };
 };
 #endif
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 // Use the following template to avoid compile-time const truncation warning
 
@@ -398,6 +402,8 @@ const T IntTraits<T>::maxInt;
 template<typename T>
 const T IntTraits<T>::minInt;
 
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 template<typename T, typename U>class SafeIntCompare
 {
 public:
@@ -447,6 +453,8 @@ public:
   };
 };
 
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 /*
 The non-throwing version are for use by the helper functions that return success and failure
 Some of the non-throwing functions are not used, but are maintained for completeness
@@ -467,7 +475,371 @@ public:
     method = IntTraits<T>::isLT64Bit && IntTraits<T>::isSigned ? AbsMethodInt :
              IntTraits<T>::isInt64 ? AbsMethodInt64 : AbsMethodNoop
   };
-};	
+};
+
+template<typename T, int > class AbsValueHelper;
+template<typename T> class AbsValueHelper <T,AbsMethodInt>
+{
+public:
+	static unsigned __int32 Abs(T t) SAFEINT_NOTHROW
+	{
+		SAFEINT_ASSERT(t < 0);
+		return ~(unsigned __int32)t + 1;
+	}
+};
+
+template<typename T> class AbsValueHelper<T,AbsMethodInt64>
+{
+public:
+	static unsigned __int64 Abs(T t) SAFEINT_NOTHROW
+	{
+		SAFEINT_ASSERT(t < 0);
+		return ~(unsigned __int64)t + 1;
+	}
+};
+
+template<typename T> class AbsValueHelper<T,AbsMethodNoop>
+{
+public:
+	static T Abs(T t) SAFEINT_NOTHROW
+	{
+		SAFEINT_ASSERT(false);
+		return t;
+	}
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
+/*
+ * Negation will normally upcast to int
+ * For example -(unsigned short)0xffff == (int)0xffff0001
+ */
+template<typename T, bool> class NegationHelper;
+template<typename T> class NegationHelper <T,true>
+{
+public:
+	template<typename E>
+	static T NegativeThrow(T t) SAFEINT_CPP_THROW
+	{
+		if (t != IntTraits<T>::minInt)
+		{
+			return -t;
+		}
+		E::SafeIntOnOverflow();
+	}
+
+	static bool Negative(T t, T& ret) SAFEINT_NOTHROW
+	{
+		if (t != IntTraits<T>::minInt)
+		{
+			ret = -t;
+			return true;
+		}
+		return false;
+    }
+};
+
+template <typename T> class SignedNegation;
+template<>
+class SignedNegation <signed __int32>
+{
+public:
+	static signed __int32 Value(unsigned __int64 in) SAFEINT_NOTHROW
+	{
+		return (signed __int32)(~(unsigned __int32)in + 1);
+	}
+	static signed __int32 Value(unsigned __int32 in) SAFEINT_NOTHROW
+	{
+		return (signed __int32)(~in + 1);
+	}
+
+};
+
+template <>
+class SignedNegation <signed __int64>
+{
+public:
+	static signed __int64 Value(unsigned __int64 in) SAFEINT_NOTHROW
+	{
+		return (signed __int64)(~in + 1);
+	}
+};
+
+template <typename T> class NegationHelper <T, false>
+{
+public:
+  template<typename E>
+  static T NegativeThrow(T t) SAFEINT_CPP_THROW
+  {
+    #if defined SAFEINT_DISALLOW_UNSIGNED_NEGATION
+    C_ASSERT(sizeof(T) == 0);
+    #endif
+
+    #if SAFEINT_COMPILER == VISUAL_STUDIO_COMPILER
+    #pragma warning(push)
+    #pragma warning(disable:4146)
+    #endif
+    return (T)-t;
+
+    #if SAFEINT_COMPILER == VISUAL_STUDIO_COMPILER
+    #pragma warning(pop)
+    #endif
+  }
+
+  static bool Negative(T t, T& ret) SAFEINT_NOTHROW
+  {
+    if (IntTraits<T>::isLT32Bit)
+    {
+      SAFEINT_ASSERT(false);
+    }
+    #if defined SAFEINT_DISALLOW_UNSIGNED_NEGATION
+    C_ASSERT(sizeof(T) == 0);
+    #endif
+    ret = -t;
+    return true;
+  }
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
+// Core logic to determine casting behavior
+enum CastMethod {
+	CastOK = 0,
+	CastCheckLTZero,
+	CastCheckGTMax,
+	CastCheckSafeIntMinMaxUnsigned,
+	CastCheckSafeIntMinMaxSigned,
+	CastToFloat,
+	CastFromFloat,
+	CastToBool,
+	CastFromBool,
+};
+
+template <typename ToType, typename FromType>
+class GetCastMethod
+{
+public:
+	enum {
+		method = (IntTraits<FromType>::isBool && !IntTraits<ToType>::isBool) ? CastFromBool:
+				(!IntTraits<FromType>::isBool && IntTraits<ToType>::isBool) ? CastToBool:
+				(SafeIntCompare<ToType,FromType>::isCastOK) ? CastOK:
+				((IntTraits<ToType>::isSigned && !IntTraits<FromType>::isSigned && sizeof(FromType) >= sizeof(ToType)) ||
+				 (SafeIntCompare<ToType, FromType>::isBothUnSigned && sizeof(FromType) > sizeof(ToType))) ? CastCheckGTMax:
+				(!IntTraits<ToType>::isSigned && IntTraits<FromType>::isSigned &&
+						sizeof(ToType) >= sizeof(FromType)) ? CastCheckLTZero:
+				(!IntTraits<ToType>::isSigned) ? CastCheckSafeIntMinMaxUnsigned : CastCheckSafeIntMinMaxSigned
+	};
+};
+
+template <typename FromType> class GetCastMethod <float, FromType>
+{
+public:
+	enum {
+		method = CastOK
+	};
+};
+
+template <typename FromType> class GetCastMethod <double, FromType>
+{
+public:
+	enum {
+		method = CastOK
+	};
+};
+
+template <typename FromType> class GetCastMethod <long double, FromType>
+{
+public:
+	enum {
+		method = CastOK
+	};
+};
+
+template <typename ToType> class GetCastMethod<ToType, float>
+{
+public:
+	enum {
+		method = CastFromFloat
+	};
+};
+
+template <typename ToType> class GetCastMethod<ToType, double>
+{
+public:
+	enum {
+		method = CastFromFloat
+	};
+};
+
+template <typename ToType> class GetCastMethod<ToType, long double>
+{
+public:
+	enum {
+		method = CastFromFloat
+	};
+};
+
+template <typename T, typename U, int> class SafeCastHelper;
+template <typename T, typename U> class SafeCastHelper <T,U,CastOK>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		t = (T)u;
+		return true;
+	}
+
+	template <typename E>
+	static void CastThrow(U u, T& t) SAFEINT_CPP_THROW
+	{
+		t = (T)u;
+	}
+};
+
+template <typename T, typename U> class SafeCastHelper <T, U, CastFromFloat>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		if (u <= (U)IntTraits<T>::maxInt && u >= (U)IntTraits<T>::minInt)
+		{
+			t = (T)u;
+			return true;
+		}
+		return false;
+	}
+
+	template <typename E>
+	static void CastThrow(U u, T& t) SAFEINT_CPP_THROW
+	{
+		if (u <= (U)IntTraits<T>::maxInt && u >= (U)IntTraits<T>::minInt)
+		{
+			t = (T)u;
+			return;
+		}
+		E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T> class SafeCastHelper <T, bool, CastFromBool>
+{
+public:
+	static bool Cast(bool b, T& t) SAFEINT_NOTHROW
+	{
+		t = (T)(b ? 1 : 0);
+		return true;
+	}
+
+	template <typename E>
+	static void CastThrow(bool b, T& t) SAFEINT_CPP_THROW
+	{
+		t = (T)(b ? 1 : 0);
+	}
+};
+
+template <typename T> class SafeCastHelper <bool, T, CastToBool>
+{
+public:
+	static bool Cast(T t, bool& b) SAFEINT_NOTHROW
+	{
+		b = !!t;
+		return true;
+	}
+
+	template <typename E>
+	static void CastThrow(T t, bool& b) SAFEINT_CPP_THROW
+	{
+		b = !!t;
+	}
+};
+
+template <typename T, typename U> class SafeCastHelper <T, U, CastCheckLTZero>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		if (u < 0)
+		{
+			return false;
+		}
+		t = (T)u;
+		return true;
+	}
+
+	template<typename E>
+	static void CastThrow(U u, T& t) SAFEINT_CPP_THROW
+	{
+		if (u < 0)
+		{
+			E::SafeIntOnOverflow();
+		}
+		t = (T)u;
+	}
+};
+
+template <typename T, typename U> class SafeCastHelper <T, U, CastCheckGTMax>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		if (u > (U)IntTraits<T>::maxInt)
+		{
+			return false;
+		}
+		t = (T)u;
+		return true;
+	}
+	template <typename E>
+	static void CastThrow(U u, T&t) SAFEINT_CPP_THROW
+	{
+		if (u > (U)IntTraits<T>::maxInt)
+			E::SafeIntOnOverflow();
+		t = (T)u;
+	}
+};
+
+template <typename T, typename U> class SafeCastHelper <T, U, CastCheckSafeIntMinMaxUnsigned>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		if (u > IntTraits<T>::maxInt || u < 0)
+			return false;
+		t = (T)u;
+		return true;
+	}
+
+	template <typename E>
+	static void CastThrow(U u, T& t) SAFEINT_CPP_THROW
+	{
+		if (u > IntTraits<T>::maxInt || u < 0)
+			E::SafeIntOnOverflow();
+		t = (T)u;
+	}
+};
+
+template <typename T, typename U> class SafeCastHelper <T, U, CastCheckSafeIntMinMaxSigned>
+{
+public:
+	static bool Cast(U u, T& t) SAFEINT_NOTHROW
+	{
+		if (u > IntTraits<T>::maxInt || u < IntTraits<T>::minInt)
+			return false;
+		t = (T)u;
+		return true;
+	}
+
+	template <typename E>
+	static void CastThrow(U u, T& t) SAFEINT_CPP_THROW
+	{
+		if (u > IntTraits<T>::maxInt || u < IntTraits<T>::minInt)
+			E::SafeIntOnOverflow();
+		t = (T)u;
+	}
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 }
 }
 
