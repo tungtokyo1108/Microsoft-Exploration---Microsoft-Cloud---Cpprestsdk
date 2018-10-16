@@ -839,7 +839,95 @@ public:
 };
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
+/*
+ * Some cases of some integer conversion operations
+ * For example:
+ *             signed char a = -1 = 0xff
+ *             unsigned int b = 0xffffffff
+ * We need a value-preserving cast
+ * and we are essentially testing (unsigned int)a < b == false
+ */
 
+enum ComparisonMethod {
+	ComparisonMethod_Ok = 0,
+	ComparisonMethod_CastInt,
+	ComparisonMethod_CastInt64,
+	ComparisonMethod_UnsignedT,
+	ComparisonMethod_UnsignedU
+};
+
+template<typename T, typename U>
+class ValidComparison
+{
+public:
+  enum
+  {
+    #ifdef ANSI_CONVERSIONS
+    method = ComparisonMethod_Ok
+    #else
+    method = ((SafeIntCompare<T,U>::isLikeSigned) ? ComparisonMethod_Ok:
+             ((IntTraits<T>::isSigned && sizeof(T) < 8 && sizeof(U) < 4) ||
+              (IntTraits<U>::isSigned && sizeof(T) < 4 && sizeof(U) < 8)) ? ComparisonMethod_CastInt :
+             ((IntTraits<T>::isSigned && sizeof(U) < 8) ||
+              (IntTraits<U>::isSigned && sizeof(T) < 8)) ? ComparisonMethod_CastInt64 :
+             (!IntTraits<T>::isSigned) ? ComparisonMethod_UnsignedT :
+                                         ComparisonMethod_UnsignedU     
+    )
+    #endif
+  };
+};
+
+template <typename T, typename U, int state> class EqualityTest;
+template <typename T, typename U> class EqualityTest<T, U, ComparisonMethod_Ok>
+{
+public:
+	static bool IsEquals(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return (t == u);
+	}
+};
+
+template <typename T, typename U> class EqualityTest<T, U, ComparisonMethod_CastInt>
+{
+public:
+	static bool IsEquals(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return ((int)t == (int)u);
+	}
+};
+
+template <typename T, typename U> class EqualityTest<T, U, ComparisonMethod_CastInt64>
+{
+public:
+	static bool IsEquals(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return ((__int64)t == (__int64)u);
+	}
+};
+
+template <typename T, typename U> class EqualityTest<T, U, ComparisonMethod_UnsignedT>
+{
+public:
+	// one operand is 32 or 64bit unsigned, and the other is signed and the same size or smaller
+	static bool IsEquals(const T t, const U u) SAFEINT_NOTHROW
+	{
+		if (u < 0)
+			return false;
+		return (t == (T)u);
+	}
+};
+
+template <typename T, typename U> class EqualityTest<T, U, ComparisonMethod_UnsignedU>
+{
+public:
+	static bool IsEquals(const T t, const U u) SAFEINT_NOTHROW
+	{
+		if (t < 0)
+			return false;
+		return ((U)t == u);
+	}
+};
+	
 }
 }
 
