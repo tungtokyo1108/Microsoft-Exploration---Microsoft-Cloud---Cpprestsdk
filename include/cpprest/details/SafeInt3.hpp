@@ -108,7 +108,7 @@ C_ASSERT(-1 == static_cast<int>(0xffffffff));
 namespace msl {
   namespace safeint3 {
     enum SafeIntError {
-      SafeintNoError = 0,
+      SafeIntNoError = 0,
       SafeIntArithmeticOverflow,
       SafeIntDivideByZero
     };
@@ -153,7 +153,7 @@ inline void SafeIntExceptionAssert() SAFEINT_NOTHROW {}
 class SAFEINT_VISIBLE SafeIntException
 {
 public:
-  SafeIntException() SAFEINT_NOTHROW { m_code = SafeintNoError;}
+  SafeIntException() SAFEINT_NOTHROW { m_code = SafeIntNoError;}
   SafeIntException( SafeIntError code ) SAFEINT_NOTHROW
   {
     m_code = code;
@@ -839,6 +839,7 @@ public:
 };
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 /*
  * Some cases of some integer conversion operations
  * For example:
@@ -1014,8 +1015,8 @@ public:
 		}
 		result = (T)(t % u);
 	}
-};	
-	
+};
+
 }
 }
 
