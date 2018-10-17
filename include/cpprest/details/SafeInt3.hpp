@@ -927,6 +927,94 @@ public:
 		return ((U)t == u);
 	}
 };
+
+template <typename T, typename U, int state> class GreaterThanTest;
+template <typename T, typename U> class GreaterThanTest <T, U, ComparisonMethod_Ok>
+{
+public:
+	static bool GreaterThan(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return (t > u);
+	}
+};
+
+template <typename T, typename U> class GreaterThanTest <T, U, ComparisonMethod_CastInt>
+{
+public:
+	static bool GreaterThan(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return ((int)t > (int)u);
+	}
+};
+
+template <typename T, typename U> class GreaterThanTest <T, U, ComparisonMethod_CastInt64>
+{
+public:
+	static bool GreaterThan(const T t, const U u) SAFEINT_NOTHROW
+	{
+		return ((__int64)t > (__int64)u);
+	}
+};
+
+template <typename T, typename U> class GreaterThanTest <T, U, ComparisonMethod_UnsignedT>
+{
+public:
+	static bool GreaterThan(const T t, const U u) SAFEINT_NOTHROW
+	{
+		if (u < 0)
+			return true;
+		return (t > (T)u);
+	}
+};
+
+template <typename T, typename U> class GreaterThanTest <T, U, ComparisonMethod_UnsignedU>
+{
+public:
+	static bool GreaterThan(const T t, const U u) SAFEINT_NOTHROW
+	{
+		if (t > 0)
+			return true;
+		return ((U)t > u);
+	}
+};
+
+template <typename T, typename U, int method> class ModulusHelper;
+template <typename T, typename U> class ModulusHelper<T, U, ComparisonMethod_Ok>
+{
+public:
+	static SafeIntError Modulus(const T&t, const U& u, T& result) SAFEINT_NOTHROW
+	{
+		if (u == 0)
+			return SafeIntDivideByZero;
+
+		if (CompileConst <IntTraits<U>::isSigned>::Value())
+		{
+			if (u == (U)-1)
+			{
+				result = 0;
+				return SafeIntNoError;
+			}
+		}
+		result = (T)(t % u);
+		return SafeIntNoError;
+	}
+
+	template <typename E>
+	static void ModulusThrow(const T& t, const U& u, T& result) SAFEINT_CPP_THROW
+	{
+		if (u == 0)
+			E::SafeIntOnDivZero();
+		if (CompileConst <IntTraits<U>::isSigned>::Value())
+		{
+			if (u == (U)-1)
+			{
+				result = 0;
+				return;
+			}
+		}
+		result = (T)(t % u);
+	}
+};	
 	
 }
 }
