@@ -1593,6 +1593,11 @@ template<> class LargeIntRegMultiply<signed __int32, unsigned __int64>
 public:
 	static bool RegMultiply(signed __int32 a, const unsigned __int64& b, signed __int32* pRet) SAFEINT_NOTHROW
 	{
+	         /*
+		 * Let consider a*b can be broken up into
+		 * (aHigh * 2^32 + aLow) * (bHigh * 2^32 + bLow)
+		 * => (aHigh * bHigh * 2^64) + (aLow * bHigh * 2^32) + (aHigh * bLow * 2^32) + (aLow * bLow)
+		 */
 		unsigned __int32 bHigh, bLow;
 		bool fIsNegative = false;
 		bHigh = (unsigned __int32)(b >> 32);
