@@ -2873,6 +2873,578 @@ public:
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/	
 
+enum AdditionState
+{
+    AdditionState_CastIntCheckMax,
+    AdditionState_CastUintCheckOverflow,
+    AdditionState_CastUintCheckOverflowMax,
+    AdditionState_CastUint64CheckOverflow,
+    AdditionState_CastUint64CheckOverflowMax,
+    AdditionState_CastIntCheckSafeIntMinMax,
+    AdditionState_CastInt64CheckSafeIntMinMax,
+    AdditionState_CastInt64CheckMax,
+    AdditionState_CastUint64CheckSafeIntMinMax,
+    AdditionState_CastUint64CheckSafeIntMinMax2,
+    AdditionState_CastInt64CheckOverflow,
+    AdditionState_CastInt64CheckOverflowSafeIntMinMax,
+    AdditionState_CastInt64CheckOverflowMax,
+    AdditionState_ManualCheckInt64Uint64,
+    AdditionState_ManualCheck,
+    AdditionState_Error
+};
+
+template< typename T, typename U >
+class AdditionMethod
+{
+public:
+    enum
+    {
+                 //unsigned-unsigned
+        method = (IntRegion< T,U >::IntZone_UintLT32_UintLT32  ? AdditionState_CastIntCheckMax :
+                 (IntRegion< T,U >::IntZone_Uint32_UintLT64)   ? AdditionState_CastUintCheckOverflow :
+                 (IntRegion< T,U >::IntZone_UintLT32_Uint32)   ? AdditionState_CastUintCheckOverflowMax :
+                 (IntRegion< T,U >::IntZone_Uint64_Uint)       ? AdditionState_CastUint64CheckOverflow :
+                 (IntRegion< T,U >::IntZone_UintLT64_Uint64)   ? AdditionState_CastUint64CheckOverflowMax :
+                 //unsigned-signed
+                 (IntRegion< T,U >::IntZone_UintLT32_IntLT32)  ? AdditionState_CastIntCheckSafeIntMinMax :
+                 (IntRegion< T,U >::IntZone_Uint32_IntLT64 ||
+                  IntRegion< T,U >::IntZone_UintLT32_Int32)    ? AdditionState_CastInt64CheckSafeIntMinMax :
+                 (IntRegion< T,U >::IntZone_Uint64_Int ||
+                  IntRegion< T,U >::IntZone_Uint64_Int64)      ? AdditionState_CastUint64CheckSafeIntMinMax :
+                 (IntRegion< T,U >::IntZone_UintLT64_Int64)    ? AdditionState_CastUint64CheckSafeIntMinMax2 :
+                 //signed-signed
+                 (IntRegion< T,U >::IntZone_IntLT32_IntLT32)   ? AdditionState_CastIntCheckSafeIntMinMax :
+                 (IntRegion< T,U >::IntZone_Int32_IntLT64 ||
+                  IntRegion< T,U >::IntZone_IntLT32_Int32)     ? AdditionState_CastInt64CheckSafeIntMinMax :
+                 (IntRegion< T,U >::IntZone_Int64_Int ||
+                  IntRegion< T,U >::IntZone_Int64_Int64)       ? AdditionState_CastInt64CheckOverflow :
+                 (IntRegion< T,U >::IntZone_IntLT64_Int64)     ? AdditionState_CastInt64CheckOverflowSafeIntMinMax :
+                 //signed-unsigned
+                 (IntRegion< T,U >::IntZone_IntLT32_UintLT32)  ? AdditionState_CastIntCheckMax :
+                 (IntRegion< T,U >::IntZone_Int32_UintLT32 ||
+                  IntRegion< T,U >::IntZone_IntLT64_Uint32)    ? AdditionState_CastInt64CheckMax :
+                 (IntRegion< T,U >::IntZone_Int64_UintLT64)    ? AdditionState_CastInt64CheckOverflowMax :
+                 (IntRegion< T,U >::IntZone_Int64_Uint64)      ? AdditionState_ManualCheckInt64Uint64 :
+                 (IntRegion< T,U >::IntZone_Int_Uint64)        ? AdditionState_ManualCheck :
+                  AdditionState_Error)
+    };
+};
+
+template <typename T, typename U, int method> class AdditionHelper;
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastIntCheckMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int32 tmp = lhs + rhs;
+
+		if (tmp <= (__int32)IntTraits<T>::maxInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        //16-bit or less unsigned addition
+	        __int32 tmp = lhs + rhs;
+
+	        if( tmp <= (__int32)IntTraits< T >::maxInt )
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUintCheckOverflow >
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int32 tmp = (unsigned __int32)lhs + (unsigned __int32)rhs;
+		if (tmp >= lhs)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        // 32-bit or less - both are unsigned
+	        unsigned __int32 tmp = (unsigned __int32)lhs + (unsigned __int32)rhs;
+
+	        //we added didn't get smaller
+	        if( tmp >= lhs )
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUintCheckOverflowMax >
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int32 tmp = (unsigned __int32)lhs + (unsigned __int32)rhs;
+		if (tmp >= lhs && tmp <= IntTraits<T>::maxInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        // 32-bit or less - both are unsigned
+	        unsigned __int32 tmp = (unsigned __int32)lhs + (unsigned __int32)rhs;
+
+	        //we added didn't get smaller
+	        if( tmp >= lhs && tmp <= IntTraits<T>::maxInt)
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUint64CheckOverflow >
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+		if (tmp >= lhs)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        // 32-bit or less - both are unsigned
+	        unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+
+	        //we added didn't get smaller
+	        if( tmp >= lhs )
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUint64CheckOverflowMax >
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+		if (tmp >= lhs && tmp <= IntTraits<T>::maxInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        // 32-bit or less - both are unsigned
+	        unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+
+	        //we added didn't get smaller
+	        if( tmp >= lhs && tmp <= IntTraits<T>::maxInt)
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastIntCheckSafeIntMinMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int32 tmp = lhs + rhs;
+
+		if (tmp <= (__int32)IntTraits<T>::maxInt && tmp >= (__int32)IntTraits<T>::minInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        //16-bit or less unsigned addition
+	        __int32 tmp = lhs + rhs;
+
+	        if( tmp <= (__int32)IntTraits< T >::maxInt && tmp >= (__int32)IntTraits<T>::minInt)
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastInt64CheckSafeIntMinMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int64 tmp = (__int64)lhs + (__int64)rhs;
+
+		if (tmp <= (__int64)IntTraits<T>::maxInt && tmp >= (__int64)IntTraits<T>::minInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        //16-bit or less unsigned addition
+	        __int64 tmp = (__int64)lhs + (__int64)rhs;
+
+	        if( tmp <= (__int64)IntTraits< T >::maxInt && tmp >= (__int64)IntTraits<T>::minInt)
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastInt64CheckMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int64 tmp = (__int64)lhs + (__int64)rhs;
+
+		if (tmp <= (__int64)IntTraits<T>::maxInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        //16-bit or less unsigned addition
+	        __int64 tmp = (__int64)lhs + (__int64)rhs;
+
+	        if( tmp <= (__int64)IntTraits< T >::maxInt)
+	        {
+	            result = (T)tmp;
+	            return;
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUint64CheckSafeIntMinMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int64 tmp;
+
+		if (rhs < 0)
+		{
+			tmp = AbsValueHelper<U, GetAbsMethod<U>::method>::Abs(rhs);
+			if (tmp <= lhs)
+			{
+				result = lhs - tmp;
+				return true;
+			}
+		}
+		else
+		{
+			tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+			if (tmp >= lhs)
+			{
+				result = (T)tmp;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+	        // lhs is unsigned __int64, rhs signed
+	        unsigned __int64 tmp;
+
+	        if( rhs < 0 )
+	        {
+	            // So we're effectively subtracting
+	            tmp = AbsValueHelper< U, GetAbsMethod< U >::method >::Abs( rhs );
+
+	            if( tmp <= lhs )
+	            {
+	                result = lhs - tmp;
+	                return;
+	            }
+	        }
+	        else
+	        {
+	            // now we know that rhs can be safely cast into an unsigned __int64
+	            tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+
+	            // We added and it did not become smaller
+	            if( tmp >= lhs )
+	            {
+	                result = (T)tmp;
+	                return;
+	            }
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastUint64CheckSafeIntMinMax2>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+
+		if (rhs < 0)
+		{
+			if (lhs >= ~(unsigned __int64)(rhs) + 1)
+			{
+				result = (T)(lhs + rhs);
+				return true;
+			}
+		}
+		else
+		{
+			unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+			if (tmp <= IntTraits<T>::maxInt)
+			{
+				result = (T)tmp;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+		if (rhs < 0)
+				{
+					if (lhs >= ~(unsigned __int64)(rhs) + 1)
+					{
+						result = (T)(lhs + rhs);
+						return;
+					}
+				}
+				else
+				{
+					unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+					if (tmp <= IntTraits<T>::maxInt)
+					{
+						result = (T)tmp;
+						return;
+					}
+				}
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastInt64CheckOverflow>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int64 tmp = (__int64)((unsigned __int64)lhs + (unsigned __int64)rhs);
+		if (lhs >= 0)
+		{
+			if (rhs >= 0 && tmp < lhs)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if (rhs < 0 && tmp > lhs)
+				return false;
+		}
+		result = (T)tmp;
+		return true;
+	}
+
+	template < typename E >
+	static void AdditionThrow( const T& lhs, const U& rhs, T& result ) SAFEINT_CPP_THROW
+	{
+
+	        __int64 tmp = (__int64)((unsigned __int64)lhs + (unsigned __int64)rhs);
+
+	        if( lhs >= 0 )
+	        {
+	            if( rhs >= 0 && tmp < lhs )
+	                E::SafeIntOnOverflow();
+	        }
+	        else
+	        {
+	            if( rhs < 0 && tmp > lhs )
+	                E::SafeIntOnOverflow();
+	        }
+
+	        result = (T)tmp;
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_CastInt64CheckOverflowSafeIntMinMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		__int64 tmp;
+		if (AdditionHelper<__int64,__int64, AdditionState_CastInt64CheckOverflow>::Addition((__int64)lhs,(__int64)rhs, tmp) &&
+			tmp <= IntTraits<T>::maxInt && tmp >= IntTraits<T>::minInt)
+		{
+			result = (T)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template <typename E>
+	static void AdditionThrow(const T& lhs, const U& rhs, T& result) SAFEINT_CPP_THROW
+	{
+		__int64 tmp;
+		AdditionHelper<__int64,__int64, AdditionState_CastInt64CheckOverflow>::Addition((__int64)lhs,(__int64)rhs, tmp);
+		if (tmp <= IntTraits<T>::maxInt && tmp >= IntTraits<T>::minInt)
+		{
+			result = (T)tmp;
+			return;
+		}
+		E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper<T, U, AdditionState_CastInt64CheckOverflowMax>
+{
+public:
+	static bool Addition(const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+		if ((__int64)tmp >= lhs)
+		{
+			result = (T)(__int64)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template <typename E>
+	static void AdditionThrow(const T& lhs, const U& rhs, T& result) SAFEINT_CPP_THROW
+	{
+		unsigned __int64 tmp = (unsigned __int64)lhs + (unsigned __int64)rhs;
+	    if ((__int64)tmp >= lhs)
+		{
+			result = (T)(__int64)tmp;
+			return;
+		}
+	    E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper<T, U, AdditionState_ManualCheckInt64Uint64>
+{
+public:
+	static bool Addition(const __int64& lhs, const unsigned __int64& rhs, __int64& result) SAFEINT_NOTHROW
+	{
+		C_ASSERT(IntTraits<T>::isInt64 && IntTraits<U>::isUint64);
+		unsigned __int64 tmp = (unsigned __int64)lhs + rhs;
+		if ((__int64)tmp >= lhs)
+		{
+			result = (__int64)tmp;
+			return true;
+		}
+		return false;
+	}
+
+	template <typename E>
+	static void AdditionThrow(const __int64& lhs, const unsigned __int64& rhs, T& result) SAFEINT_CPP_THROW
+	{
+		C_ASSERT(IntTraits<T>::isInt64 && IntTraits<U>::isUint64);
+		unsigned __int64 tmp = (unsigned __int64)lhs + rhs;
+		if ((__int64)tmp >= lhs)
+		{
+			result = (__int64)tmp;
+			return;
+		}
+	    E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class AdditionHelper <T, U, AdditionState_ManualCheck>
+{
+public:
+	static bool Addition (const T& lhs, const U& rhs, T& result) SAFEINT_NOTHROW
+	{
+		if ((unsigned __int32)(rhs >> 32) == 0)
+		{
+			unsigned __int32 tmp = (unsigned __int32)rhs + (unsigned __int32)lhs;
+			if ((__int32)tmp >= lhs && SafeCastHelper<T, __int32, GetCastMethod<T, __int32>::method>::Cast((__int32)tmp, result))
+				return true;
+		}
+		return false;
+	}
+
+	template <typename E>
+	static void AdditionThrow(const T& lhs, const U& rhs, T& result) SAFEINT_CPP_THROW
+	{
+		if ((unsigned __int32)(rhs >> 32) == 0)
+		{
+			unsigned __int32 tmp = (unsigned __int32)rhs + (unsigned __int32)lhs;
+			if ((__int32)tmp >= lhs && SafeCastHelper<T, __int32, GetCastMethod<T, __int32>::method>::Cast((__int32)tmp, result))
+				return;
+		}
+		E::SafeIntOnOverflow();
+	}
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+
 }
 }
 
