@@ -2557,6 +2557,322 @@ public:
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/	
 
+enum DivisionState {
+	DivisionState_OK,
+	DivisionState_UnsignedSigned,
+	DivisionState_SignedUnsigned32,
+	DivisionState_SignedUnsigned64,
+	DivisionState_SignedUnsigned,
+	DivisionState_SignedSigned,
+};
+
+template <typename T, typename U> class DivisionMethod
+{
+public:
+	enum
+	{
+		method = (SafeIntCompare<T,U>::isBothUnSigned ? DivisionState_OK :
+				 (!IntTraits<T>::isSigned && IntTraits<U>::isSigned) ? DivisionState_UnsignedSigned :
+			     (IntTraits<T>::isSigned && IntTraits<U>::isUint32
+			    		 && IntTraits<T>::isLT64Bit) ? DivisionState_SignedUnsigned32 :
+			     (IntTraits<T>::isSigned && IntTraits<U>::isUint64) ? DivisionState_SignedUnsigned64 :
+			     (IntTraits<T>::isSigned && IntTraits<U>::isSigned) ? DivisionState_SignedUnsigned :
+			    		 DivisionState_SignedSigned)
+	};
+};
+
+template <typename T, typename U, int state> class DivisionHelper;
+template <typename T, typename U> class DivisionHelper<T,U,DivisionState_OK>
+{
+public:
+	static SafeIntError Divide(const T& t, const U& u, T& result) SAFEINT_NOTHROW
+	{
+		if (u == 0)
+			return SafeIntDivideByZero;
+		if (t == 0)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+
+		result = (T)(t/u);
+		return SafeIntNoError;
+	}
+
+	template < typename E >
+	static void DivideThrow( const T& t, const U& u, T& result ) SAFEINT_CPP_THROW
+	{
+	        if( u == 0 )
+	            E::SafeIntOnDivZero();
+
+	        if( t == 0 )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        result = (T)( t/u );
+	}
+};
+
+template <typename T, typename U> class DivisionHelper <T, U, DivisionState_UnsignedSigned>
+{
+public:
+	static SafeIntError Divide(const T& t, const U& u, T& result) SAFEINT_NOTHROW
+	{
+		if (u == 0)
+			return SafeIntDivideByZero;
+		if (t == 0)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+
+		if (u > 0)
+		{
+			result = (T)(t/u);
+			return SafeIntNoError;
+		}
+
+		if (AbsValueHelper<U, GetAbsMethod<U>::method>::Abs(u) > t)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+		return SafeIntArithmeticOverflow;
+	}
+
+	template < typename E >
+	static void DivideThrow( const T& t, const U& u, T& result ) SAFEINT_CPP_THROW
+	{
+
+	        if( u == 0 )
+	            E::SafeIntOnDivZero();
+
+	        if( t == 0 )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        if( u > 0 )
+	        {
+	            result = (T)( t/u );
+	            return;
+	        }
+
+	        // it is always an error to try and divide an unsigned number by a negative signed number
+	        // unless u is bigger than t
+	        if( AbsValueHelper< U, GetAbsMethod< U >::method >::Abs( u ) > t )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U> class DivisionHelper <T, U, DivisionState_SignedUnsigned32>
+{
+public:
+	static SafeIntError Divide(const T& t, const U& u, T& result) SAFEINT_NOTHROW
+	{
+		if (u == 0)
+			return SafeIntDivideByZero;
+
+		if (t == 0)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+
+		if (t > 0)
+			result = (T)(t/u);
+		else
+			result = (T)((__int64)t/(__int64)u);
+
+		return SafeIntNoError;
+	}
+
+	template < typename E >
+	static void DivideThrow( const T& t, const U& u, T& result ) SAFEINT_CPP_THROW
+	{
+	        if( u == 0 )
+	        {
+	            E::SafeIntOnDivZero();
+	        }
+
+	        if( t == 0 )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        if( t > 0 )
+	            result = (T)( t/u );
+	        else
+	            result = (T)( (__int64)t/(__int64)u );
+	}
+};
+
+template <typename T, typename U> class DivisionHelper<T, U, DivisionState_SignedUnsigned64>
+{
+public:
+	static SafeIntError Divide(const T& t, const unsigned __int64& u, T& result) SAFEINT_NOTHROW
+	{
+		C_ASSERT(IntTraits<U>::isUint64);
+
+		if (u == 0)
+			return SafeIntDivideByZero;
+
+		if (t == 0)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+
+		if (u <= (unsigned __int64)IntTraits<T>::maxInt)
+		{
+			if (CompileConst< sizeof( T ) < sizeof( __int64 )>::Value())
+				result = (T)((int)t/(int)u);
+			else
+				result = (T)((__int64)t/(__int64)u);
+		}
+		else if (t == IntTraits<T>::minInt && u == (unsigned __int64)IntTraits<T>::minInt)
+		{
+			result = -1;
+		}
+		else
+		{
+			result = 0;
+		}
+		return SafeIntNoError;
+	}
+
+	template < typename E >
+	static void DivideThrow( const T& t, const unsigned __int64& u, T& result ) SAFEINT_CPP_THROW
+	{
+	        C_ASSERT( IntTraits< U >::isUint64 );
+
+	        if( u == 0 )
+	        {
+	            E::SafeIntOnDivZero();
+	        }
+
+	        if( t == 0 )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        if( u <= (unsigned __int64)IntTraits< T >::maxInt )
+	        {
+	            // Else u can safely be cast to T
+	            if( CompileConst< sizeof( T ) < sizeof( __int64 ) >::Value() )
+	                result = (T)( (int)t/(int)u );
+	            else
+	                result = (T)((__int64)t/(__int64)u);
+	        }
+	        else // Corner case
+	        if( t == IntTraits< T >::minInt && u == (unsigned __int64)IntTraits< T >::minInt )
+	        {
+	            // Min int divided by it's own magnitude is -1
+	            result = -1;
+	        }
+	        else
+	        {
+	            result = 0;
+	        }
+	}
+};
+
+template <typename T, typename U> class DivisionHelper <T, U, DivisionState_SignedUnsigned>
+{
+public:
+    // T is any signed, U is unsigned and smaller than 32-bit
+    // In this case, standard operator casting is correct
+    static SafeIntError Divide( const T& t, const U& u, T& result ) SAFEINT_NOTHROW
+    {
+        if( u == 0 )
+        {
+            return SafeIntDivideByZero;
+        }
+
+        if( t == 0 )
+        {
+            result = 0;
+            return SafeIntNoError;
+        }
+
+        result = (T)( t/u );
+        return SafeIntNoError;
+    }
+
+    template < typename E >
+    static void DivideThrow( const T& t, const U& u, T& result ) SAFEINT_CPP_THROW
+    {
+        if( u == 0 )
+        {
+            E::SafeIntOnDivZero();
+        }
+
+        if( t == 0 )
+        {
+            result = 0;
+            return;
+        }
+
+        result = (T)( t/u );
+    }
+};
+
+template <typename T, typename U> class DivisionHelper<T, U, DivisionState_SignedSigned>
+{
+public:
+	static SafeIntError Divide (const T& t, const U& u, T& result) SAFEINT_NOTHROW
+	{
+		if (u == 0)
+			return SafeIntDivideByZero;
+
+		if (t == 0)
+		{
+			result = 0;
+			return SafeIntNoError;
+		}
+
+		if (t == IntTraits<T>::minInt && u == (U)-1)
+		{
+			return SafeIntArithmeticOverflow;
+		}
+		result = (T)(t/u);
+		return SafeIntNoError;
+	}
+
+	template < typename E >
+	static void DivideThrow( const T& t, const U& u, T& result ) SAFEINT_CPP_THROW
+	{
+	        if(u == 0)
+	        {
+	            E::SafeIntOnDivZero();
+	        }
+
+	        if( t == 0 )
+	        {
+	            result = 0;
+	            return;
+	        }
+
+	        // Must test for corner case
+	        if( t == IntTraits< T >::minInt && u == (U)-1 )
+	            E::SafeIntOnOverflow();
+
+	        result = (T)( t/u );
+	}
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+
 }
 }
 
