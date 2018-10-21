@@ -1679,7 +1679,884 @@ public:
 	        E::SafeIntOnOverflow();
 	}
 };	
-	
+
+template<> class LargeIntRegMultiply<unsigned __int32, unsigned __int64>
+{
+public:
+	static bool RegMultiply(unsigned __int32 a, const unsigned __int64& b, unsigned __int32* pRet) SAFEINT_NOTHROW
+	{
+		/*
+		 * Consider that a*b can be broken up into
+		 * (bHigh * 2^32 + bLow) * a
+		 * => (bHigh * a * 2^32) + (bLow * a)
+		 * In this case, the result must fit into 32-bits
+		 */
+		if ((unsigned __int32)(b >> 32) != 0 && a != 0)
+		{
+			return false;
+		}
+
+		unsigned __int64 tmp = b * (unsigned __int64)a;
+		if ((unsigned __int32)(tmp >> 32) != 0)
+			return false;
+
+		*pRet = (unsigned __int32)tmp;
+		return true;
+	}
+
+	template < typename E >
+	static void RegMultiplyThrow( unsigned __int32 a, const unsigned __int64& b, unsigned __int32* pRet ) SAFEINT_CPP_THROW
+	{
+	        if( (unsigned __int32)(b >> 32) != 0 && a != 0 )
+	            E::SafeIntOnOverflow();
+
+	        unsigned __int64 tmp = b * (unsigned __int64)a;
+
+	        if( (unsigned __int32)(tmp >> 32) != 0 ) // overflow
+	            E::SafeIntOnOverflow();
+
+	        *pRet = (unsigned __int32)tmp;
+	}
+};
+
+template<> class LargeIntRegMultiply<unsigned __int32, signed __int64>
+{
+	static bool RegMultiply(unsigned __int32 a, const signed __int64& b, unsigned __int32* pRet) SAFEINT_NOTHROW
+	{
+		if (b < 0 && a != 0)
+			return false;
+		return LargeIntRegMultiply<unsigned __int32, unsigned __int64>::RegMultiply(a, (unsigned __int64)b, pRet);
+	}
+
+	template < typename E >
+	static void RegMultiplyThrow( unsigned __int32 a, const signed __int64& b, unsigned __int32* pRet ) SAFEINT_CPP_THROW
+	{
+	        if( b < 0 && a != 0 )
+	            E::SafeIntOnOverflow();
+
+	        LargeIntRegMultiply< unsigned __int32, unsigned __int64 >::template RegMultiplyThrow< E >( a, (unsigned __int64)b, pRet );
+	}
+};
+
+template <> class LargeIntRegMultiply <signed __int64, signed __int64>
+{
+public:
+	static bool RegMultiply(const signed __int64& a, const signed __int64& b, signed __int64* pRet) SAFEINT_NOTHROW
+	{
+#if SAFEINT_USE_INTRINSICS
+		return IntrinsicMultiplyInt64(a,b,pRet);
+#else
+		bool aNegative = false;
+		bool bNegative = false;
+
+		unsigned __int64 tmp;
+		__int64 a1 = a;
+		__int64 b1 = b;
+
+		if (a1 < 0)
+		{
+			aNegative = true;
+			a1 = (signed __int64)AbsValueHelper<signed __int64, GetAbsMethod<signed __int64>::method>::Abs(a1);
+		}
+
+		if (b1 < 0)
+		{
+			bNegative = true;
+			b1 = (signed __int64)AbsValueHelper<signed __int64, GetAbsMethod<signed __int64>::method>::Abs(b1);
+		}
+
+		if (LargeIntRegMultiply<unsigned __int64, unsigned __int64>::RegMultiply((unsigned __int64)a1,
+				(unsigned __int64)b1, &tmp))
+		{
+			if (aNegative ^ bNegative)
+			{
+				if (tmp <= (unsigned __int64)IntTraits<signed __int64>::minInt)
+				{
+					*pRet = SignedNegation<signed __int64>::Value(tmp);
+					return true;
+				}
+			}
+			else
+			{
+				if (tmp <= (unsigned __int64)IntTraits<signed __int64>::maxInt)
+				{
+					*pRet = (signed __int64)tmp;
+					return true;
+				}
+			}
+		}
+		return false;
+#endif
+	}
+
+	template < typename E >
+	static void RegMultiplyThrow( const signed __int64& a, const signed __int64& b, signed __int64* pRet ) SAFEINT_CPP_THROW
+	{
+	#if SAFEINT_USE_INTRINSICS
+	        if( !IntrinsicMultiplyInt64( a, b, pRet ) )
+	            E::SafeIntOnOverflow();
+	#else
+	        bool aNegative = false;
+	        bool bNegative = false;
+
+	        unsigned __int64 tmp;
+	        __int64 a1 = a;
+	        __int64 b1 = b;
+
+	        if( a1 < 0 )
+	        {
+	            aNegative = true;
+	            a1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a1);
+	        }
+
+	        if( b1 < 0 )
+	        {
+	            bNegative = true;
+	            b1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(b1);
+	        }
+
+	        LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::template RegMultiplyThrow< E >( (unsigned __int64)a1, (unsigned __int64)b1, &tmp );
+
+	        // The unsigned multiplication didn't overflow or we'd be in the exception handler
+	        if( aNegative ^ bNegative )
+	        {
+	            // Result must be negative
+	            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+	            {
+	                *pRet = SignedNegation< signed __int64 >::Value( tmp );
+	                return;
+	            }
+	        }
+	        else
+	        {
+	            // Result must be positive
+	            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+	            {
+	                *pRet = (signed __int64)tmp;
+	                return;
+	            }
+	        }
+
+	        E::SafeIntOnOverflow();
+	#endif
+	}
+};
+
+template <> class LargeIntRegMultiply <signed __int64, unsigned __int32>
+{
+	static bool RegMultiply(const signed __int64& a, unsigned __int32 b, signed __int64* pRet) SAFEINT_NOTHROW
+    {
+#if SAFEINT_USE_INTRINSICS
+		return IntrinsicMultiplyInt64(a,b,pRet);
+#else
+		bool aNegative = false;
+		unsigned __int64 tmp;
+		__int64 a1 = a;
+
+		if (a1 < 0)
+		{
+			aNegative = true;
+			a1 = (signed __int64)AbsValueHelper<signed __int64, GetAbsMethod<signed __int64>::method>::Abs(a1);
+		}
+
+		if (LargeIntRegMultiply<unsigned __int64, unsigned __int32>::RegMultiply((unsigned __int64)a1, b, &tmp))
+		{
+			if (aNegative)
+			{
+				if (tmp <= (unsigned __int64)IntTraits<signed __int64>::minInt)
+				{
+					*pRet = SignedNegation<signed __int64>::Value(tmp);
+					return true;
+				}
+			}
+			else
+			{
+				if (tmp <= (unsigned __int64)IntTraits<signed __int64>::maxInt)
+				{
+					*pRet = (signed __int64)tmp;
+					return true;
+				}
+			}
+		}
+
+		return false;
+#endif
+    }
+
+	template < typename E >
+	static void RegMultiplyThrow( const signed __int64& a, unsigned __int32 b, signed __int64* pRet ) SAFEINT_CPP_THROW
+	{
+	#if SAFEINT_USE_INTRINSICS
+	        if( !IntrinsicMultiplyInt64( a, (signed __int64)b, pRet ) )
+	            E::SafeIntOnOverflow();
+	#else
+	        bool aNegative = false;
+	        unsigned __int64 tmp;
+	        __int64 a1 = a;
+
+	        if( a1 < 0 )
+	        {
+	            aNegative = true;
+	            a1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a1);
+	        }
+
+	        LargeIntRegMultiply< unsigned __int64, unsigned __int32 >::template RegMultiplyThrow< E >( (unsigned __int64)a1, b, &tmp );
+
+	        // The unsigned multiplication didn't overflow
+	        if( aNegative )
+	        {
+	            // Result must be negative
+	            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+	            {
+	                *pRet = SignedNegation< signed __int64 >::Value( tmp );
+	                return;
+	            }
+	        }
+	        else
+	        {
+	            // Result must be positive
+	            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+	            {
+	                *pRet = (signed __int64)tmp;
+	                return;
+	            }
+	        }
+
+	        E::SafeIntOnOverflow();
+	#endif
+	}
+};
+
+template <> class LargeIntRegMultiply <signed __int64, signed __int32>
+{
+public:
+    static bool RegMultiply( const signed __int64& a, signed __int32 b, signed __int64* pRet ) SAFEINT_NOTHROW
+    {
+#if SAFEINT_USE_INTRINSICS
+        return IntrinsicMultiplyInt64( a, (signed __int64)b, pRet );
+#else
+        bool aNegative = false;
+        bool bNegative = false;
+
+        unsigned __int64 tmp;
+        __int64 a1 = a;
+        __int64 b1 = b;
+
+        if( a1 < 0 )
+        {
+            aNegative = true;
+            a1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a1);
+        }
+
+        if( b1 < 0 )
+        {
+            bNegative = true;
+            b1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(b1);
+        }
+
+        if( LargeIntRegMultiply< unsigned __int64, unsigned __int32 >::RegMultiply( (unsigned __int64)a1, (unsigned __int32)b1, &tmp ) )
+        {
+            // The unsigned multiplication didn't overflow
+            if( aNegative ^ bNegative )
+            {
+                // Result must be negative
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+                {
+                    *pRet = SignedNegation< signed __int64 >::Value( tmp );
+                    return true;
+                }
+            }
+            else
+            {
+                // Result must be positive
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+                {
+                    *pRet = (signed __int64)tmp;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+#endif
+    }
+
+    template < typename E >
+    static void RegMultiplyThrow( signed __int64 a, signed __int32 b, signed __int64* pRet ) SAFEINT_CPP_THROW
+    {
+#if SAFEINT_USE_INTRINSICS
+        if( !IntrinsicMultiplyInt64( a, (signed __int64)b, pRet ) )
+            E::SafeIntOnOverflow();
+#else
+        bool aNegative = false;
+        bool bNegative = false;
+
+        unsigned __int64 tmp;
+
+        if( a < 0 )
+        {
+            aNegative = true;
+            a = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a);
+        }
+
+        if( b < 0 )
+        {
+            bNegative = true;
+            b = (signed __int32)AbsValueHelper< signed __int32, GetAbsMethod< signed __int32 >::method >::Abs(b);
+        }
+
+        LargeIntRegMultiply< unsigned __int64, unsigned __int32 >::template RegMultiplyThrow< E >( (unsigned __int64)a, (unsigned __int32)b, &tmp );
+
+        // The unsigned multiplication didn't overflow
+        if( aNegative ^ bNegative )
+        {
+            // Result must be negative
+            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+            {
+                *pRet = SignedNegation< signed __int64 >::Value( tmp );
+                return;
+            }
+        }
+        else
+        {
+            // Result must be positive
+            if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+            {
+                *pRet = (signed __int64)tmp;
+                return;
+            }
+        }
+
+        E::SafeIntOnOverflow();
+#endif
+}
+};
+
+template <> class LargeIntRegMultiply <signed __int32, signed __int64>
+{
+public:
+    static bool RegMultiply( signed __int32 a, const signed __int64& b, signed __int32* pRet ) SAFEINT_NOTHROW
+    {
+#if SAFEINT_USE_INTRINSICS
+        __int64 tmp;
+
+        if( IntrinsicMultiplyInt64( a, b, &tmp ) )
+        {
+            if( tmp > IntTraits< signed __int32 >::maxInt ||
+                tmp < IntTraits< signed __int32 >::minInt )
+            {
+                return false;
+            }
+
+            *pRet = (__int32)tmp;
+            return true;
+        }
+        return false;
+#else
+        bool aNegative = false;
+        bool bNegative = false;
+
+        unsigned __int32 tmp;
+        __int64 b1 = b;
+
+        if( a < 0 )
+        {
+            aNegative = true;
+            a = (signed __int32)AbsValueHelper< signed __int32, GetAbsMethod< signed __int32 >::method >::Abs(a);
+        }
+
+        if( b1 < 0 )
+        {
+            bNegative = true;
+            b1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(b1);
+        }
+
+        if( LargeIntRegMultiply< unsigned __int32, unsigned __int64 >::RegMultiply( (unsigned __int32)a, (unsigned __int64)b1, &tmp ) )
+        {
+            // The unsigned multiplication didn't overflow
+            if( aNegative ^ bNegative )
+            {
+                // Result must be negative
+                if( tmp <= (unsigned __int32)IntTraits< signed __int32 >::minInt )
+                {
+                    *pRet = SignedNegation< signed __int32 >::Value( tmp );
+                    return true;
+                }
+            }
+            else
+            {
+                // Result must be positive
+                if( tmp <= (unsigned __int32)IntTraits< signed __int32 >::maxInt )
+                {
+                    *pRet = (signed __int32)tmp;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+#endif
+    }
+
+    template < typename E >
+    static void RegMultiplyThrow( signed __int32 a, const signed __int64& b, signed __int32* pRet ) SAFEINT_CPP_THROW
+    {
+#if SAFEINT_USE_INTRINSICS
+        __int64 tmp;
+
+        if( IntrinsicMultiplyInt64( a, b, &tmp ) )
+        {
+            if( tmp > IntTraits< signed __int32 >::maxInt ||
+                tmp < IntTraits< signed __int32 >::minInt )
+            {
+                E::SafeIntOnOverflow();
+            }
+
+            *pRet = (__int32)tmp;
+            return;
+        }
+        E::SafeIntOnOverflow();
+#else
+        bool aNegative = false;
+        bool bNegative = false;
+
+        unsigned __int32 tmp;
+        signed __int64 b2 = b;
+
+        if( a < 0 )
+        {
+            aNegative = true;
+            a = (signed __int32)AbsValueHelper< signed __int32, GetAbsMethod< signed __int32 >::method >::Abs(a);
+        }
+
+        if( b < 0 )
+        {
+            bNegative = true;
+            b2 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(b2);
+        }
+
+        LargeIntRegMultiply< unsigned __int32, unsigned __int64 >::template RegMultiplyThrow< E >( (unsigned __int32)a, (unsigned __int64)b2, &tmp );
+
+        // The unsigned multiplication didn't overflow
+        if( aNegative ^ bNegative )
+        {
+            // Result must be negative
+            if( tmp <= (unsigned __int32)IntTraits< signed __int32 >::minInt )
+            {
+                *pRet = SignedNegation< signed __int32 >::Value( tmp );
+                return;
+            }
+        }
+        else
+        {
+            // Result must be positive
+            if( tmp <= (unsigned __int32)IntTraits< signed __int32 >::maxInt )
+            {
+                *pRet = (signed __int32)tmp;
+                return;
+            }
+        }
+
+        E::SafeIntOnOverflow();
+#endif
+}
+};
+
+template <> class LargeIntRegMultiply <signed __int64, unsigned __int64>
+{
+public:
+    // Leave this one as-is - will call unsigned intrinsic internally
+    static bool RegMultiply( const signed __int64& a, const unsigned __int64& b, signed __int64* pRet ) SAFEINT_NOTHROW
+    {
+        bool aNegative = false;
+
+        unsigned __int64 tmp;
+        __int64 a1 = a;
+
+        if( a1 < 0 )
+        {
+            aNegative = true;
+            a1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a1);
+        }
+
+        if( LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::RegMultiply( (unsigned __int64)a1, (unsigned __int64)b, &tmp ) )
+        {
+            // The unsigned multiplication didn't overflow
+            if( aNegative )
+            {
+                // Result must be negative
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+                {
+                    *pRet = SignedNegation< signed __int64 >::Value( tmp );
+                    return true;
+                }
+            }
+            else
+            {
+                // Result must be positive
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+                {
+                    *pRet = (signed __int64)tmp;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    template < typename E >
+    static void RegMultiplyThrow( const signed __int64& a, const unsigned __int64& b, signed __int64* pRet ) SAFEINT_CPP_THROW
+    {
+        bool aNegative = false;
+        unsigned __int64 tmp;
+        __int64 a1 = a;
+
+        if( a1 < 0 )
+        {
+            aNegative = true;
+            a1 = (signed __int64)AbsValueHelper< signed __int64, GetAbsMethod< signed __int64 >::method >::Abs(a1);
+        }
+
+        if( LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::RegMultiply( (unsigned __int64)a1, (unsigned __int64)b, &tmp ) )
+        {
+            // The unsigned multiplication didn't overflow
+            if( aNegative )
+            {
+                // Result must be negative
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::minInt )
+                {
+                    *pRet = SignedNegation< signed __int64 >::Value( tmp );
+                    return;
+                }
+            }
+            else
+            {
+                // Result must be positive
+                if( tmp <= (unsigned __int64)IntTraits< signed __int64 >::maxInt )
+                {
+                    *pRet = (signed __int64)tmp;
+                    return;
+                }
+            }
+        }
+
+        E::SafeIntOnOverflow();
+}
+};
+
+/*
+ * Properly transition types.
+ * The methods need __int64, __int32,
+ * but variables being passed to us could be long long, long int, or long, depeding on the compiler
+ * Microsoft compiler knows that long long is the same type as __int64, but gcc does not
+ */
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Uint64 >
+{
+public:
+    // T, U are unsigned __int64
+    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isUint64 );
+        unsigned __int64 t1 = t;
+        unsigned __int64 u1 = u;
+        return LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::RegMultiply( t1, u1, reinterpret_cast<unsigned __int64*>(&ret) );
+    }
+
+    template < typename E >
+    static void MultiplyThrow(const unsigned __int64& t, const unsigned __int64& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isUint64 );
+        unsigned __int64 t1 = t;
+        unsigned __int64 u1 = u;
+        LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::template RegMultiplyThrow< E >( t1, u1, reinterpret_cast<unsigned __int64*>(&ret) );
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Uint >
+{
+public:
+    // T is unsigned __int64
+    // U is any unsigned int 32-bit or less
+    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 );
+        unsigned __int64 t1 = t;
+        return LargeIntRegMultiply< unsigned __int64, unsigned __int32 >::RegMultiply( t1, (unsigned __int32)u, reinterpret_cast<unsigned __int64*>(&ret) );
+    }
+
+    template < typename E >
+    static void MultiplyThrow( const T& t, const U& u, T& ret ) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 );
+        unsigned __int64 t1 = t;
+        LargeIntRegMultiply< unsigned __int64, unsigned __int32 >::template RegMultiplyThrow< E >( t1, (unsigned __int32)u, reinterpret_cast<unsigned __int64*>(&ret) );
+    }
+};
+
+// converse of the previous function
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_UintUint64 >
+{
+public:
+    // T is any unsigned int up to 32-bit
+    // U is unsigned __int64
+    static bool Multiply(const T& t, const U& u, T& ret) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<U>::isUint64 );
+        unsigned __int64 u1 = u;
+        unsigned __int32 tmp;
+
+        if( LargeIntRegMultiply< unsigned __int32, unsigned __int64 >::RegMultiply( t, u1, &tmp ) &&
+            SafeCastHelper< T, unsigned __int32, GetCastMethod< T, unsigned __int32 >::method >::Cast(tmp, ret) )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    template < typename E >
+    static void MultiplyThrow(const T& t, const U& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<U>::isUint64 );
+        unsigned __int64 u1 = u;
+        unsigned __int32 tmp;
+
+        LargeIntRegMultiply< unsigned __int32, unsigned __int64 >::template RegMultiplyThrow< E >( t, u1, &tmp );
+        SafeCastHelper< T, unsigned __int32, GetCastMethod< T, unsigned __int32 >::method >::template CastThrow< E >(tmp, ret);
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Int >
+{
+public:
+    // T is unsigned __int64
+    // U is any signed int, up to 64-bit
+    static bool Multiply(const T& t, const U& u, T& ret) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 );
+        unsigned __int64 t1 = t;
+        return LargeIntRegMultiply< unsigned __int64, signed __int32 >::RegMultiply(t1, (signed __int32)u, reinterpret_cast< unsigned __int64* >(&ret));
+    }
+
+    template < typename E >
+    static void MultiplyThrow(const T& t, const U& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 );
+        unsigned __int64 t1 = t;
+        LargeIntRegMultiply< unsigned __int64, signed __int32 >::template RegMultiplyThrow< E >(t1, (signed __int32)u, reinterpret_cast< unsigned __int64* >(&ret));
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Int64 >
+{
+public:
+    // T is unsigned __int64
+    // U is __int64
+    static bool Multiply(const T& t, const U& u, T& ret) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isInt64 );
+        unsigned __int64 t1 = t;
+        __int64          u1 = u;
+        return LargeIntRegMultiply< unsigned __int64, __int64 >::RegMultiply(t1, u1, reinterpret_cast< unsigned __int64* >(&ret));
+    }
+
+    template < typename E >
+    static void MultiplyThrow(const T& t, const U& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isInt64 );
+        unsigned __int64 t1 = t;
+        __int64          u1 = u;
+        LargeIntRegMultiply< unsigned __int64, __int64 >::template RegMultiplyThrow< E >(t1, u1, reinterpret_cast< unsigned __int64* >(&ret));
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_UintInt64 >
+{
+public:
+    // T is unsigned up to 32-bit
+    // U is __int64
+    static bool Multiply(const T& t, const U& u, T& ret) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<U>::isInt64 );
+        __int64          u1 = u;
+        unsigned __int32 tmp;
+
+        if( LargeIntRegMultiply< unsigned __int32, __int64 >::RegMultiply( (unsigned __int32)t, u1, &tmp ) &&
+            SafeCastHelper< T, unsigned __int32, GetCastMethod< T, unsigned __int32 >::method >::Cast(tmp, ret) )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    template < typename E >
+    static void MultiplyThrow(const T& t, const U& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<U>::isInt64 );
+        __int64          u1 = u;
+        unsigned __int32 tmp;
+
+        LargeIntRegMultiply< unsigned __int32, __int64 >::template RegMultiplyThrow< E >( (unsigned __int32)t, u1, &tmp );
+        SafeCastHelper< T, unsigned __int32, GetCastMethod< T, unsigned __int32 >::method >::template CastThrow< E >(tmp, ret);
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Int64Uint >
+{
+public:
+    // T is __int64
+    // U is unsigned up to 32-bit
+    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 );
+        __int64          t1 = t;
+        return LargeIntRegMultiply< __int64, unsigned __int32 >::RegMultiply( t1, (unsigned __int32)u, reinterpret_cast< __int64* >(&ret) );
+    }
+
+    template < typename E >
+    static void MultiplyThrow( const T& t, const U& u, T& ret ) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 );
+        __int64          t1 = t;
+        LargeIntRegMultiply< __int64, unsigned __int32 >::template RegMultiplyThrow< E >( t1, (unsigned __int32)u, reinterpret_cast< __int64* >(&ret) );
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Int64Int64 >
+{
+public:
+    // T, U are __int64
+    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 && IntTraits<U>::isInt64 );
+        __int64          t1 = t;
+        __int64          u1 = u;
+        return LargeIntRegMultiply< __int64, __int64 >::RegMultiply( t1, u1, reinterpret_cast< __int64* >(&ret) );
+    }
+
+    template < typename E >
+    static void MultiplyThrow( const T& t, const U& u, T& ret ) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 && IntTraits<U>::isInt64 );
+        __int64          t1 = t;
+        __int64          u1 = u;
+        LargeIntRegMultiply< __int64, __int64 >::template RegMultiplyThrow< E >( t1, u1, reinterpret_cast< __int64* >(&ret));
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Int64Int >
+{
+public:
+    // T is __int64
+    // U is signed up to 32-bit
+    static bool Multiply( const T& t, U u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 );
+        __int64          t1 = t;
+        return LargeIntRegMultiply< __int64, __int32 >::RegMultiply( t1, (__int32)u, reinterpret_cast< __int64* >(&ret));
+    }
+
+    template < typename E >
+    static void MultiplyThrow( const __int64& t, U u, T& ret ) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 );
+        __int64          t1 = t;
+        LargeIntRegMultiply< __int64, __int32 >::template RegMultiplyThrow< E >(t1, (__int32)u, reinterpret_cast< __int64* >(&ret));
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_IntUint64 >
+{
+public:
+    // T is signed up to 32-bit
+    // U is unsigned __int64
+    static bool Multiply(T t, const U& u, T& ret) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<U>::isUint64 );
+        unsigned __int64 u1 = u;
+        __int32 tmp;
+
+        if( LargeIntRegMultiply< __int32, unsigned __int64 >::RegMultiply( (__int32)t, u1, &tmp ) &&
+            SafeCastHelper< T, __int32, GetCastMethod< T, __int32 >::method >::Cast( tmp, ret ) )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    template < typename E >
+    static void MultiplyThrow(T t, const unsigned __int64& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<U>::isUint64 );
+        unsigned __int64 u1 = u;
+        __int32 tmp;
+
+        LargeIntRegMultiply< __int32, unsigned __int64 >::template RegMultiplyThrow< E >( (__int32)t, u1, &tmp );
+        SafeCastHelper< T, __int32, GetCastMethod< T, __int32 >::method >::template CastThrow< E >( tmp, ret );
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Int64Uint64>
+{
+public:
+    // T is __int64
+    // U is unsigned __int64
+    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 && IntTraits<U>::isUint64 );
+        __int64          t1 = t;
+        unsigned __int64 u1 = u;
+        return LargeIntRegMultiply< __int64, unsigned __int64 >::RegMultiply( t1, u1, reinterpret_cast< __int64* >(&ret));
+    }
+
+    template < typename E >
+    static void MultiplyThrow( const __int64& t, const unsigned __int64& u, T& ret ) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<T>::isInt64 && IntTraits<U>::isUint64 );
+        __int64          t1 = t;
+        unsigned __int64 u1 = u;
+        LargeIntRegMultiply< __int64, unsigned __int64 >::template RegMultiplyThrow< E >( t1, u1, reinterpret_cast< __int64* >(&ret) );
+    }
+};
+
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_IntInt64>
+{
+public:
+    // T is signed, up to 32-bit
+    // U is __int64
+    static bool Multiply( T t, const U& u, T& ret ) SAFEINT_NOTHROW
+    {
+        C_ASSERT( IntTraits<U>::isInt64 );
+        __int64 u1 = u;
+        __int32 tmp;
+
+        if( LargeIntRegMultiply< __int32, __int64 >::RegMultiply( (__int32)t, u1, &tmp ) &&
+            SafeCastHelper< T, __int32, GetCastMethod< T, __int32 >::method >::Cast( tmp, ret ) )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    template < typename E >
+    static void MultiplyThrow(T t, const U& u, T& ret) SAFEINT_CPP_THROW
+    {
+        C_ASSERT( IntTraits<U>::isInt64 );
+        __int64 u1 = u;
+        __int32 tmp;
+
+        LargeIntRegMultiply< __int32, __int64 >::template RegMultiplyThrow< E >( (__int32)t, u1, &tmp );
+        SafeCastHelper< T, __int32, GetCastMethod< T, __int32 >::method >::template CastThrow< E >( tmp, ret );
+    }
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+
 }
 }
 
