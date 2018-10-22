@@ -4374,10 +4374,155 @@ public:
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
+enum BinaryState {
+     BinaryState_OK,
+     BinaryState_Int8,
+     BinaryState_Int16,
+     BinaryState_Int32
+};
+
+template <typename T, typename U> class BinaryMethod
+{
+public:
+	enum {
+		method = ( sizeof( T ) <= sizeof( U ) ||
+		         SafeIntCompare< T, U >::isBothUnsigned ||
+		         !IntTraits< U >::isSigned )          ? BinaryState_OK :
+		         IntTraits< U >::isInt8               ? BinaryState_Int8 :
+		         IntTraits< U >::isInt16              ? BinaryState_Int16
+		                                              : BinaryState_Int32
+	};
+};
+
+#ifdef SAFEINT_DISABLE_BINARY_ASSERT
+#define BinaryAssert(x)
+#else
+#define BinaryAssert(x) SAFEINT_ASSERT(x)
+#endif
+
+template <typename T, typename U, int method> class BinaryAndHelper;
+template <typename T, typename U> class BinaryAndHelper <T, U, BinaryState_OK>
+{
+public:
+	static T And(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		return (T)(lhs & rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryAndHelper<T, U, BinaryState_Int8>
+{
+public:
+	static T And(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs & rhs) == (lhs & (unsigned __int8)rhs));
+		return (T)(lhs & (unsigned __int8)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryAndHelper<T, U, BinaryState_Int16>
+{
+public:
+	static T And(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs & rhs) == (lhs & (unsigned __int16)rhs));
+		return (T)(lhs & (unsigned __int16)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryAndHelper<T, U, BinaryState_Int32>
+{
+public:
+	static T And(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs & rhs) == (lhs & (unsigned __int32)rhs));
+		return (T)(lhs & (unsigned __int32)rhs);
+	}
+};
+
+
+template <typename T, typename U, int method> class BinaryOrHelper;
+template <typename T, typename U> class BinaryOrHelper <T, U, BinaryState_OK>
+{
+public:
+	static T Or(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		return (T)(lhs | rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryOrHelper <T, U, BinaryState_Int8>
+{
+public:
+	static T Or(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs | rhs) == (lhs | (unsigned __int8)rhs));
+		return (T)(lhs | (unsigned __int8)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryOrHelper <T, U, BinaryState_Int16>
+{
+public:
+	static T Or(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs | rhs) == (lhs | (unsigned __int16)rhs));
+		return (T)(lhs | (unsigned __int16)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryOrHelper <T, U, BinaryState_Int32>
+{
+public:
+	static T Or(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs | rhs) == (lhs | (unsigned __int32)rhs));
+		return (T)(lhs | (unsigned __int32)rhs);
+	}
+};
+
+template <typename T, typename U, int method> class BinaryXorHelper;
+template <typename T, typename U> class BinaryXorHelper<T, U, BinaryState_OK>
+{
+public:
+	static T Xor(T lhs, U rhs) SAFEINT_NOTHROW {return (T)(lhs ^ rhs);}
+};
+
+template <typename T, typename U> class BinaryXorHelper<T, U, BinaryState_Int8>
+{
+	static T Xor(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs ^ rhs) == (lhs ^ (unsigned __int8)rhs));
+		return (T)(lhs ^ (unsigned __int8)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryXorHelper<T, U, BinaryState_Int16>
+{
+	static T Xor(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs ^ rhs) == (lhs ^ (unsigned __int16)rhs));
+		return (T)(lhs ^ (unsigned __int16)rhs);
+	}
+};
+
+template <typename T, typename U> class BinaryXorHelper<T, U, BinaryState_Int32>
+{
+	static T Xor(T lhs, U rhs) SAFEINT_NOTHROW
+	{
+		BinaryAssert((lhs ^ rhs) == (lhs ^ (unsigned __int32)rhs));
+		return (T)(lhs ^ (unsigned __int32)rhs);
+	}
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 
 
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/	
+
+
 }
 }
 
