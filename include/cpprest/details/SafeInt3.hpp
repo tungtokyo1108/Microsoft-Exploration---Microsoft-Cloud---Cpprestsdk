@@ -220,6 +220,15 @@ public:
 #endif
 }
 
+// Both of these cross-platform support
+
+typedef SafeIntInternal::SafeIntExceptionHandler <SafeIntException> CPlusPlusExceptionHandler;
+typedef SafeIntInternal::SafeInt_InvalidParameter InvalidParameterExceptionHandler;
+
+#if defined _WINDOWS_
+typedef SafeIntInternal::SafeIntWin32ExceptionHandler Win32ExceptionHandler;
+#endif
+
 #if defined VISUAL_STUDIO_SAFEINT_COMPAT
 typedef CPlusPlusExceptionHandler SafeIntErrorPolicy_SafeIntException;
 typedef InvalidParameterExceptionHandler SafeIntErrorPolicy_InvalidParameter;
@@ -872,7 +881,7 @@ public:
              ((IntTraits<T>::isSigned && sizeof(U) < 8) ||
               (IntTraits<U>::isSigned && sizeof(T) < 8)) ? ComparisonMethod_CastInt64 :
              (!IntTraits<T>::isSigned) ? ComparisonMethod_UnsignedT :
-                                         ComparisonMethod_UnsignedU     
+                                         ComparisonMethod_UnsignedU
     )
     #endif
   };
@@ -1593,7 +1602,7 @@ template<> class LargeIntRegMultiply<signed __int32, unsigned __int64>
 public:
 	static bool RegMultiply(signed __int32 a, const unsigned __int64& b, signed __int32* pRet) SAFEINT_NOTHROW
 	{
-	         /*
+		/*
 		 * Let consider a*b can be broken up into
 		 * (aHigh * 2^32 + aLow) * (bHigh * 2^32 + bLow)
 		 * => (aHigh * bHigh * 2^64) + (aLow * bHigh * 2^32) + (aHigh * bLow * 2^32) + (aLow * bLow)
@@ -1678,7 +1687,7 @@ public:
 
 	        E::SafeIntOnOverflow();
 	}
-};	
+};
 
 template<> class LargeIntRegMultiply<unsigned __int32, unsigned __int64>
 {
@@ -2252,26 +2261,25 @@ public:
  * Microsoft compiler knows that long long is the same type as __int64, but gcc does not
  */
 
-template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Uint64 >
+template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Uint64>
 {
 public:
-    // T, U are unsigned __int64
-    static bool Multiply( const T& t, const U& u, T& ret ) SAFEINT_NOTHROW
-    {
-        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isUint64 );
-        unsigned __int64 t1 = t;
-        unsigned __int64 u1 = u;
-        return LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::RegMultiply( t1, u1, reinterpret_cast<unsigned __int64*>(&ret) );
-    }
+	static bool Multiply(const T& t, const U& u, T& ret) SAFEINT_NOTHROW
+	{
+		C_ASSERT(IntTraits<T>::isUint64 && IntTraits<U>::isUint64);
+		unsigned __int64 t1 = t;
+		unsigned __int64 u1 = u;
+		return LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::RegMultiply(t1,u1,reinterpret_cast<unsigned __int64*>(&ret));
+	}
 
-    template < typename E >
-    static void MultiplyThrow(const unsigned __int64& t, const unsigned __int64& u, T& ret) SAFEINT_CPP_THROW
-    {
-        C_ASSERT( IntTraits<T>::isUint64 && IntTraits<U>::isUint64 );
-        unsigned __int64 t1 = t;
-        unsigned __int64 u1 = u;
-        LargeIntRegMultiply< unsigned __int64, unsigned __int64 >::template RegMultiplyThrow< E >( t1, u1, reinterpret_cast<unsigned __int64*>(&ret) );
-    }
+	template < typename E >
+	static void MultiplyThrow(const unsigned __int64& t, const unsigned __int64& u, T& ret) SAFEINT_CPP_THROW
+	{
+		C_ASSERT(IntTraits<T>::isUint64 && IntTraits<U>::isUint64);
+		unsigned __int64 t1 = t;
+		unsigned __int64 u1 = u;
+		LargeIntRegMultiply< unsigned __int64, unsigned __int64>::template RegMultiplyThrow<E>(t1,u1,reinterpret_cast<unsigned __int64*>(&ret));
+	}
 };
 
 template < typename T, typename U > class MultiplicationHelper< T, U, MultiplicationState_Uint64Uint >
@@ -2555,7 +2563,7 @@ public:
     }
 };
 
-/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 enum DivisionState {
 	DivisionState_OK,
@@ -2871,7 +2879,7 @@ public:
 	}
 };
 
-/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 enum AdditionState
 {
@@ -3443,7 +3451,7 @@ public:
 	}
 };
 
-/*--------------------------------------------------------------------------------------------------------------------------------------*/	
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 enum SubtractionState
 {
@@ -4375,10 +4383,10 @@ public:
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 enum BinaryState {
-     BinaryState_OK,
-     BinaryState_Int8,
-     BinaryState_Int16,
-     BinaryState_Int32
+	BinaryState_OK,
+	BinaryState_Int8,
+	BinaryState_Int16,
+	BinaryState_Int32
 };
 
 template <typename T, typename U> class BinaryMethod
@@ -4591,10 +4599,18 @@ inline bool SafeSubtract(T t, U u, T& result) SAFEINT_NOTHROW
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
-
+template <typename T, typename E = SafeIntDefaultExceptionHandler> class SafeInt
+{
+public:
+	SafeInt() SAFEINT_NOTHROW
+	{
+		C_ASSERT(NumericType<T>::inInt);
+	}
+};
 
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
+
 
 }
 }
