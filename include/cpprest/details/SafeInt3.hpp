@@ -4517,11 +4517,84 @@ template <typename T, typename U> class BinaryXorHelper<T, U, BinaryState_Int32>
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
+template <typename T, typename U>
+inline bool SafeCast(const T From, U& To) SAFEINT_NOTHROW
+{
+	return SafeCastHelper<U, T, GetCastMethod<U, T>::method>::Cast(From, To);
+}
+
+template <typename T, typename U>
+inline bool SafeEquals(const T t, const U u) SAFEINT_NOTHROW
+{
+	return EqualityTest<T, U, ValidComparison<T, U>::method>::IsEquals(t,u);
+}
+
+template <typename T, typename U>
+inline bool SafeNoEquals(const T t, const U u) SAFEINT_NOTHROW
+{
+	return !EqualityTest<T, U, ValidComparison<T, U>::method>::IsEquals(t,u);
+}
+
+template <typename T, typename U>
+inline bool SafeGreaterThan(const T t, const U u) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<T, U, ValidComparison<T,U>::method>::GreaterThan(t,u);
+}
+
+template <typename T, typename U>
+inline bool SafeGreaterThanEquals(const T t, const U u) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T,U>::method>::GreaterThan(t,u);
+}
+
+template <typename T, typename U>
+inline bool SafeLessThan(const T t, const U u) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<U, T, ValidComparison<U,T>::method>::GreaterThan(u,t);
+}
+
+template <typename T, typename U>
+inline bool SafeLessThanEquals(const T t, const U u) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T,U>::method>::GreaterThan(t,u);
+}
+
+template <typename T, typename U>
+inline bool SafeModulus(const T& t, const U& u, T& result) SAFEINT_NOTHROW
+{
+	return (ModulusHelper<T, U, ValidComparison<T, U>::method>::Modulus(t,u,result) == SafeIntNoError);
+}
+
+template <typename T, typename U>
+inline bool SafeMultiply(T t, U u, T& result) SAFEINT_NOTHROW
+{
+	return MultiplicationHelper<T, U, MultiplicationMethod<T, U>::method>::Multiply(t,u,result);
+}
+
+template <typename T, typename U>
+inline bool SafeDivide(T t, U u, T& result) SAFEINT_NOTHROW
+{
+	return (DivisionHelper<T, U, DivisionMethod<T, U>::method>::Divide(t, u, result) == SafeIntNoError);
+}
+
+template <typename T, typename U>
+inline bool SafeAdd(T t, U u, T& result) SAFEINT_NOTHROW
+{
+	return AdditionHelper<T, U, AdditionMethod<T,U>::method>::Addition(t,u,result);
+}
+
+template <typename T, typename U>
+inline bool SafeSubtract(T t, U u, T& result) SAFEINT_NOTHROW
+{
+	return SubtractionHelper<T, U, SubtractionMethod<T,U>::method>::Subtract(t,u.result);
+}
+
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 
 
-/*--------------------------------------------------------------------------------------------------------------------------------------*/	
 
+/*--------------------------------------------------------------------------------------------------------------------------------------*/
 
 }
 }
