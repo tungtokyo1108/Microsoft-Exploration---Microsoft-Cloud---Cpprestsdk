@@ -4598,14 +4598,714 @@ inline bool SafeSubtract(T t, U u, T& result) SAFEINT_NOTHROW
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
-
 template <typename T, typename E = SafeIntDefaultExceptionHandler> class SafeInt
 {
+private:
+	T m_int;
+
+	template <typename U>
+	static SafeInt<T,E>SafeTtoI(U* input) SAFEINT_CPP_THROW
+	{
+		U* tmp = input;
+		SafeInt<T,E> s;
+		bool negative = false;
+
+		if ( input == nullptr || input[0] == 0)
+			E::SafeIntOnOverflow();
+
+		switch (*tmp)
+		{
+		case '-':
+			tmp++;
+			negative = true;
+			break;
+		case '+':
+			tmp++;
+			break;
+		}
+
+		while (*tmp != 0)
+		{
+			if (*tmp < '0' || *tmp > '9')
+				break;
+			if ((T)s != 0)
+				s *= (T)10;
+			if (!negative)
+				s += (T)(*tmp - '0');
+			else
+				s -= (T)(*tmp - '0');
+
+			tmp++;
+		}
+		return 0;
+	}
 public:
 	SafeInt() SAFEINT_NOTHROW
 	{
 		C_ASSERT(NumericType<T>::inInt);
+		m_int = 0;
 	}
+
+	SafeInt(const T& i) SAFEINT_NOTHROW
+	{
+		C_ASSERT(NumericType<T>::inInt);
+		m_int = i;
+	}
+
+	SafeInt(bool b) SAFEINT_NOTHROW
+	{
+		C_ASSERT(NumericType<T>::inInt);
+		m_int = (T)(b ? 1 : 0);
+	}
+
+	template <typename U>
+	SafeInt(const SafeInt<U,E>&u) SAFEINT_CPP_THROW
+	{
+		C_ASSERT(NumericType<T>::inInt);
+		*this = SafeInt<T,E>((U)u);
+	}
+
+	template <typename U>
+	SafeInt(const U& i) SAFEINT_CPP_THROW
+	{
+		C_ASSERT(NumericType<T>::inInt);
+		SafeCastHelper<T, U, GetCastMethod<T,U>::method>::template CastThrow<E>(i,m_int);
+	}
+
+	/*
+	 * Start overloading operators
+	 * assignment operator
+	 * constructions exist for all int types and will ensure safety
+	 */
+
+	template <typename U>
+	SafeInt<T, E>& operator = (const U& rhs) SAFEINT_CPP_THROW
+	{
+		*this = SafeInt<T,E>(rhs);
+		return *this;
+	}
+
+	SafeInt<T, E>& operator =(const T& rhs) SAFEINT_NOTHROW
+	{
+		m_int = rhs;
+		return *this;
+	}
+
+	template <typename U>
+	SafeInt<T, E>& operator = (const SafeInt<U,E>& rhs) SAFEINT_CPP_THROW
+	{
+		SafeCastHelper<T,U,GetCastMethod<T,U>::method>::template CastThrow<E> (rhs.Ref(), m_int);
+		return *this;
+	}
+
+	SafeInt<T,E>& operator = (const SafeInt<T,E>& rhs) SAFEINT_NOTHROW
+	{
+		m_int = rhs.m_int;
+		return *this;
+	}
+
+	operator bool() const SAFEINT_NOTHROW
+	{
+		return !m_int;
+	}
+
+	operator char() const SAFEINT_CPP_THROW
+	{
+		char val;
+		SafeCastHelper<char,T,GetCastMethod<char,T>::method>::template CastThrow<E> (m_int,val);
+		return val;
+	}
+
+	operator signed char() const SAFEINT_CPP_THROW
+	{
+		signed char val;
+		SafeCastHelper<signed char, T, GetCastMethod<signed char, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator unsigned char() const SAFEINT_CPP_THROW
+	{
+		unsigned char val;
+		SafeCastHelper<unsigned char, T, GetCastMethod<unsigned char, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator __int16() const SAFEINT_CPP_THROW
+	{
+		__int16 val;
+		SafeCastHelper<__int16, T, GetCastMethod<__int16, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator unsigned __int16() const SAFEINT_CPP_THROW
+	{
+		unsigned __int16 val;
+		SafeCastHelper<unsigned __int16, T, GetCastMethod<unsigned __int16, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator __int32() const SAFEINT_CPP_THROW
+	{
+		__int32 val;
+		SafeCastHelper<__int32, T, GetCastMethod<__int32,T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator unsigned __int32() const SAFEINT_CPP_THROW
+	{
+		unsigned __int32 val;
+		SafeCastHelper<unsigned __int32, T, GetCastMethod<unsigned __int32,T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator long() const SAFEINT_CPP_THROW
+	{
+		long val;
+		SafeCastHelper<long, T, GetCastMethod<long, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator unsigned long() const SAFEINT_CPP_THROW
+	{
+		unsigned long val;
+		SafeCastHelper<unsigned long, T, GetCastMethod<unsigned long, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator __int64() const SAFEINT_CPP_THROW
+	{
+		__int64 val;
+		SafeCastHelper<__int64, T, GetCastMethod<__int64, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+	operator unsigned __int64() const SAFEINT_CPP_THROW
+	{
+		unsigned __int64 val;
+		SafeCastHelper<unsigned __int64, T, GetCastMethod<unsigned __int64, T>::method>::template CastThrow<E> (m_int, val);
+		return val;
+	}
+
+#if defined SAFEINT_USE_WCHAR_T || defined _NATIVE_WCHAR_T_DEFINED
+operator wchar_t() const SAFEINT_CPP_THROW
+{
+  wchar_t val;
+  SafeCastHelper <wchar_t, T, GetCastMethod<wchar_t, T>::method>::template CastThrow<E> (m_int, val);
+  return val;
+}
+#endif
+
+#ifdef SIZE_T_CAST_NEEDED
+operator size_t() const SAFEINT_CPP_THROW
+{
+  size_t val;
+  SafeCastHelper <size_t, T, GetCastMethod<size_t, T>::method>::template CastThrow<E> (m_int, val);
+  return val;
+}
+#endif
+
+    operator float() const SAFEINT_CPP_THROW
+    {
+    	float val;
+    	SafeCastHelper<float, T, GetCastMethod<float,T>::method>::template CastThrow<E> (m_int, val);
+    	return val;
+    }
+
+    operator double() const SAFEINT_CPP_THROW
+    {
+    	double val;
+    	SafeCastHelper<double, T, GetCastMethod<double,T>::method>::template CastThrow<E> (m_int, val);
+    	return val;
+    }
+
+    operator long double() const SAFEINT_CPP_THROW
+    {
+    	long double val;
+    	SafeCastHelper<long double, T, GetCastMethod<long double, T>::method>::template CastThrow<E> (m_int, val);
+    	return val;
+    }
+
+    T *Ptr() SAFEINT_NOTHROW {return &m_int;}
+    const T *Ptr() const SAFEINT_NOTHROW {return &m_int;}
+    const T &Ptr() const SAFEINT_NOTHROW {return m_int;}
+
+    /*
+     * SafeInt <T,E>::Ptr() is inconvenient, use the overload operator &
+     * Allow you to more easily pass a SafeInt into things like ReadFile
+     * This is unsafe things
+     */
+
+    T *operator &() SAFEINT_NOTHROW {return &m_int;}
+    const T *operator &() const SAFEINT_NOTHROW {return &m_int;}
+
+    bool operator !() const SAFEINT_NOTHROW {return (!m_int) ? true : false;}
+
+    const SafeInt<T,E>& operator +() const SAFEINT_NOTHROW {return *this;}
+
+    const SafeInt<T,E>& operator -() const SAFEINT_CPP_THROW
+    {
+    	return SafeInt<T,E>(NegationHelper<T, IntTraits<T>::isSigned>::template NegativeThrow<E>(m_int));
+    }
+
+    SafeInt<T, E>& operator ++() SAFEINT_CPP_THROW
+    {
+    	if (m_int != IntTraits<T>::maxInt)
+    	{
+    		++m_int;
+    		return *this;
+    	}
+    	E::SafeIntOnOverflow();
+    }
+
+    SafeInt<T, E>& operator --() SAFEINT_CPP_THROW
+    {
+    	if (m_int != IntTraits<T>::minInt)
+    	{
+    		--m_int;
+    		return *this;
+    	}
+    	E::SafeIntOnOverflow();
+    }
+
+    SafeInt<T, E> operator ++(int) SAFEINT_CPP_THROW
+    {
+    	if (m_int != IntTraits<T>::maxInt)
+    	{
+    		SafeInt<T,E> tmp(m_int);
+    		m_int++;
+    		return tmp;
+    	}
+    	E::SafeIntOnOverflow();
+    }
+
+    SafeInt<T, E> operator--(int) SAFEINT_CPP_THROW
+    {
+    	if (m_int != IntTraits<T>::minInt)
+    	{
+    		SafeInt<T,E> tmp(m_int);
+    		m_int--;
+    	}
+    	E::SafeIntOnOverflow();
+    }
+
+    SafeInt<T,E> operator ~() const SAFEINT_NOTHROW
+    {
+    	return SafeInt<T, E> ((T)~m_int);
+    }
+
+    template <typename U>
+    SafeInt <T, E> operator %(U rhs) const SAFEINT_CPP_THROW
+	{
+    	T result;
+    	ModulusHelper<T, U, ValidComparison<T,U>::method>::template ModulusThrow<E> (m_int, rhs, result);
+    	return SafeInt<T,E>(result);
+	}
+
+    SafeInt<T, E> operator %(SafeInt<T,E>rhs) const SAFEINT_CPP_THROW
+    {
+    	T result;
+    	ModulusHelper<T,T,ValidComparison<T,T>::method>::template ModulusThrow<E>(m_int, rhs, result);
+    	return SafeInt<T,E>(result);
+    }
+
+    template <typename U>
+    SafeInt <T,E>& operator %=(U rhs) SAFEINT_CPP_THROW
+	{
+    	ModulusHelper<T, U, ValidComparison<T,U>::method>::template ModulusThrow<E>(m_int, rhs, m_int);
+    	return *this;
+	}
+
+    template <typename U>
+    SafeInt <T, E>& operator %=(SafeInt<U,E> rhs) SAFEINT_CPP_THROW
+	{
+    	ModulusHelper<T, U, ValidComparison<T,U>::method>::template ModulusThrow<E>(m_int, (U)rhs, m_int);
+    	return *this;
+	}
+
+    template <typename U>
+    SafeInt<T, E> operator *(U rhs) const SAFEINT_CPP_THROW
+	{
+    	T ret(0);
+        MultiplicationHelper<T, U, MultiplicationMethod<T,U>::method>::template MultiplyThrow<E> (m_int, rhs, ret);
+        return SafeInt<T,E>(ret);
+	}
+
+    SafeInt<T, E> operator *(SafeInt<T,E>rhs) const SAFEINT_CPP_THROW
+    {
+    	T ret(0);
+    	MultiplicationHelper<T, T, MultiplicationMethod<T,T>::method>::template MultiplyThrow<E> (m_int, (T)rhs, ret);
+    	return SafeInt<T,E>(ret);
+    }
+
+    SafeInt<T,E>& operator *=(SafeInt<T,E>rhs) SAFEINT_CPP_THROW
+    {
+    	MultiplicationHelper <T, T, MultiplicationMethod<T,T>::method>::template MultiplyThrow<E> (m_int, (T)rhs, m_int);
+    	return *this;
+    }
+
+    template <typename U>
+    SafeInt<T,E>& operator *=(U rhs) SAFEINT_CPP_THROW
+	{
+    	MultiplicationHelper<T, U, MultiplicationMethod<T, U>::method>::template MultiplyThrow<E> (m_int, rhs, m_int);
+    	return *this;
+	}
+
+    template <typename U>
+    SafeInt<T,E>& operator *=(SafeInt<U, E> rhs) SAFEINT_CPP_THROW
+	{
+    	MultiplicationHelper<T, U, MultiplicationMethod<T, U>::method>::template MultiplyThrow<E> (m_int, rhs.Ref(), m_int);
+    	return *this;
+	}
+
+    template <typename U>
+    SafeInt<T, E> operator /(U rhs) const SAFEINT_CPP_THROW
+	{
+    	T ret(0);
+    	DivisionHelper<T, U, DivisionMethod<T, U>::method>::template DivideThrow<E> (m_int, rhs, ret);
+    	return SafeInt<T,E>(ret);
+	}
+
+    SafeInt<T,E> operator /(SafeInt<T,E> rhs) const SAFEINT_CPP_THROW
+    {
+    	T ret(0);
+    	DivisionHelper<T, T, DivisionMethod<T, T>::method>::template DivideThrow<E> (m_int, (T)rhs, ret);
+    	return SafeInt<T,E>(ret);
+    }
+
+    SafeInt<T,E>& operator /=(SafeInt<T,E> rhs) const SAFEINT_CPP_THROW
+    {
+    	DivisionHelper<T, T, DivisionMethod<T, T>::method>::template DivideThrow<E> (m_int, (T)rhs, m_int);
+    	return *this;
+    }
+
+    template <typename U>
+    SafeInt<T,E>& operator /=(U rhs) SAFEINT_CPP_THROW
+    {
+    	DivisionHelper<T, U, DivisionMethod<T, U>::method>::template DivideThrow<E> (m_int, rhs, m_int);
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T,E>& operator /=(SafeInt<U, E> rhs) SAFEINT_CPP_THROW
+    {
+    	DivisionHelper<T, U, DivisionMethod<T, U>::method>::template DivideThrow<E> (m_int, (U)rhs, m_int);
+        return *this;
+    }
+
+    SafeInt<T, E> operator +(SafeInt<T, E>rhs) const SAFEINT_CPP_THROW
+    {
+    	T ret(0);
+    	AdditionHelper <T, T, AdditionMethod<T, T>::method>::template AdditionThrow<E>(m_int, (T)rhs, ret);
+    	return SafeInt<T, E>(ret);
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator +(U rhs) const SAFEINT_CPP_THROW
+	{
+    	T ret(0);
+    	AdditionHelper <T, U, AdditionMethod<T, U>::method>::template AdditionThrow<E>(m_int, rhs, ret);
+    	return SafeInt<T,E>(ret);
+	}
+
+    SafeInt<T, E>& operator +=(SafeInt<T, E>rhs) const SAFEINT_CPP_THROW
+    {
+        AdditionHelper <T, T, AdditionMethod<T, T>::method>::template AdditionThrow<E>(m_int, (T)rhs, m_int);
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator +=(U rhs) const SAFEINT_CPP_THROW
+    {
+        AdditionHelper <T, U, AdditionMethod<T, U>::method>::template AdditionThrow<E>(m_int, rhs, m_int);
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator +=(SafeInt<U,E> rhs) const SAFEINT_CPP_THROW
+    {
+        AdditionHelper <T, U, AdditionMethod<T, U>::method>::template AdditionThrow<E>(m_int, (U)rhs, m_int);
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator -(U rhs) const SAFEINT_CPP_THROW
+	{
+    	T ret(0);
+    	SubtractionHelper< T, U, SubtractionMethod< T, U >::method >::template SubtractThrow< E >( m_int, rhs, ret );
+    	return SafeInt<T, E>(ret);
+	}
+
+    SafeInt<T, E> operator -(SafeInt<T,E> rhs) const SAFEINT_CPP_THROW
+    {
+        T ret(0);
+        SubtractionHelper< T, T, SubtractionMethod< T, T >::method >::template SubtractThrow< E >( m_int, (T)rhs, ret );
+        return SafeInt<T, E>(ret);
+    }
+
+    SafeInt<T, E>& operator -=(SafeInt<T,E> rhs) const SAFEINT_CPP_THROW
+    {
+        SubtractionHelper< T, T, SubtractionMethod< T, T >::method >::template SubtractThrow< E >( m_int, (T)rhs, m_int );
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator -=(U rhs) const SAFEINT_CPP_THROW
+    {
+        SubtractionHelper< T, U, SubtractionMethod< T, U >::method >::template SubtractThrow< E >( m_int, rhs, m_int );
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator -=(SafeInt<U, E> rhs) const SAFEINT_CPP_THROW
+    {
+        SubtractionHelper< T, U, SubtractionMethod< T, U >::method >::template SubtractThrow< E >( m_int, rhs, m_int );
+        return *this;
+    }
+
+#ifdef SAFEINT_DISABLE_SHIFT_ASSERT
+#define ShiftAssert(x)
+#else
+#define ShiftAssert(x) SAFEINT_ASSERT(x)
+#endif
+
+    template <typename U>
+    SafeInt <T, E> operator << (U bits) const SAFEINT_NOTHROW
+	{
+    	ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+    	ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+    	return SafeInt<T, E>((T)(m_int << bits));
+	}
+
+    template <typename U>
+    SafeInt<T, E> operator << (SafeInt<U, E> bits) const SAFEINT_NOTHROW
+	{
+    	ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+    	ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+    	return SafeInt<T, E>((T)(m_int << (U)bits));
+	}
+
+    template <typename U>
+    SafeInt<T, E> operator <<= (U bits) SAFEINT_NOTHROW
+	{
+    	ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+    	ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+    	m_int <<= bits;
+    	return *this;
+	}
+
+    template <typename U>
+    SafeInt<T, E>& operator <<= (U bits) SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        m_int <<= bits;
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator <<= (SafeInt<U, E> bits) SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        m_int <<= (U)bits;
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt <T, E> operator >> (U bits) const SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        return SafeInt<T, E>((T)(m_int >> bits));
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator >> (SafeInt<U, E> bits) const SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        return SafeInt<T, E>((T)(m_int >> (U)bits));
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator >>= (U bits) SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        m_int >>= bits;
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator >>= (SafeInt<U, E> bits) SAFEINT_NOTHROW
+    {
+        ShiftAssert(!IntTraits<U>::isSigned || bits >= 0);
+        ShiftAssert(bits < (int)IntTraits<T>::bitCount);
+
+        m_int >>= (U)bits;
+        return *this;
+    }
+
+    SafeInt<T, E> operator &(SafeInt<T, E>rhs) const SAFEINT_NOTHROW
+    {
+    	return SafeInt<T, E>(m_int & (T)rhs);
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator &(U rhs) const SAFEINT_NOTHROW
+	{
+    	return SafeInt<T, E>(BinaryAndHelper<T, U, BinaryMethod<T, U>::method>::And(m_int, rhs));
+	}
+
+    SafeInt<T, E>& operator &=(SafeInt<T,E> rhs) SAFEINT_NOTHROW
+    {
+    	m_int &= (T)rhs;
+    	return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator &=(U rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryAndHelper<T, U, BinaryMethod<T, U>::method>::And(m_int, rhs));
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator &=(SafeInt<U, E> rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryAndHelper<T, U, BinaryMethod<T, U>::method>::And(m_int, (U)rhs));
+        return *this;
+    }
+
+    SafeInt<T, E> operator ^(SafeInt<T, E>rhs) const SAFEINT_NOTHROW
+    {
+        return SafeInt<T, E>((T)(m_int ^ (T)rhs));
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator ^(U rhs) const SAFEINT_NOTHROW
+    {
+        return SafeInt<T, E>(BinaryXorHelper<T, U, BinaryMethod<T, U>::method>::Xor(m_int, rhs));
+    }
+
+    SafeInt<T, E>& operator ^=(SafeInt<T,E> rhs) SAFEINT_NOTHROW
+    {
+        m_int ^= (T)rhs;
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator ^=(U rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryXorHelper<T, U, BinaryMethod<T, U>::method>::Xor(m_int, rhs));
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator ^=(SafeInt<U, E> rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryXorHelper<T, U, BinaryMethod<T, U>::method>::Xor(m_int, (U)rhs));
+        return *this;
+    }
+
+    SafeInt<T, E> operator | (SafeInt<T, E> rhs) const SAFEINT_NOTHROW
+    {
+    	return SafeInt<T, E>((T)(m_int | (T)rhs));
+    }
+
+    template <typename U>
+    SafeInt<T, E> operator | (U rhs) const SAFEINT_NOTHROW
+    {
+        return SafeInt<T, E>(BinaryOrHelper<T, U, BinaryMethod<T, U>::method>::Or(m_int, rhs));
+    }
+
+    SafeInt<T, E>& operator |= (SafeInt<T,E> rhs) SAFEINT_NOTHROW
+    {
+        m_int |= (T)rhs;
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator |= (U rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryOrHelper<T, U, BinaryMethod<T, U>::method>::Or(m_int, rhs));
+        return *this;
+    }
+
+    template <typename U>
+    SafeInt<T, E>& operator |= (SafeInt<U, E> rhs) SAFEINT_NOTHROW
+    {
+        m_int = (BinaryOrHelper<T, U, BinaryMethod<T, U>::method>::Or(m_int, (U)rhs));
+        return *this;
+    }
+
+    SafeInt<T, E> Min(SafeInt<T,E>test, const T floor = IntTraits<T>::minInt) const SAFEINT_NOTHROW
+    {
+    	T tmp = test < m_int ? (T)test : m_int;
+    	return tmp < floor ? floor : tmp;
+    }
+
+    SafeInt<T, E> Max(SafeInt<T,E>test, const T upper = IntTraits<T>::maxInt) const SAFEINT_NOTHROW
+    {
+    	T tmp = test > m_int ? (T)test : m_int;
+    	return tmp > upper ? upper : tmp;
+    }
+
+    void Swap (SafeInt<T, E>& with) SAFEINT_NOTHROW
+    {
+    	T temp(m_int);
+    	m_int = with.m_int;
+    	with.m_int = temp;
+    }
+
+    static SafeInt<T, E> SafeAtoI(const char* input) SAFEINT_CPP_THROW
+    {
+    	return SafeTtoI(input);
+    }
+
+    static SafeInt<T, E> SafeWtoI(const wchar_t* input)
+	{
+    	return SafeTtoI(input);
+	}
+
+    enum alignBits
+    {
+            align2 = 1,
+            align4 = 2,
+            align8 = 3,
+            align16 = 4,
+            align32 = 5,
+            align64 = 6,
+            align128 = 7,
+            align256 = 8
+    };
+    
+    template <alignBits bits>
+    const SafeInt<T,E>& Align() SAFEINT_CPP_THROW
+    {
+    	if (m_int == 0)
+    		return *this;
+    	const T AlignValue = ((T)1 << bits) - 1;
+    	m_int = (T)((m_int + AlignValue) & ~AlignValue);
+    	
+    	if (m_int <= 0)
+    		E::SafeIntOnOverflow();
+    	
+    	return *this;
+    }
+    
+    const SafeInt<T,E>& Align2() {return Align<align2>();}
+    const SafeInt<T,E>& Align4() {return Align<align4>();}
+    const SafeInt<T,E>& Align8() {return Align<align8>();}
+    
 };
 
 
