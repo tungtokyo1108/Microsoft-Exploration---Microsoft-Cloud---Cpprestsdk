@@ -5305,6 +5305,9 @@ operator size_t() const SAFEINT_CPP_THROW
     const SafeInt<T,E>& Align2() {return Align<align2>();}
     const SafeInt<T,E>& Align4() {return Align<align4>();}
     const SafeInt<T,E>& Align8() {return Align<align8>();}
+    const SafeInt<T,E>& Align16() {return Align<align16>();}
+    const SafeInt<T,E>& Align32() {return Align<align32>();}
+    const SafeInt<T,E>& Align64() {return Align<align64>();}
     
 };
 
