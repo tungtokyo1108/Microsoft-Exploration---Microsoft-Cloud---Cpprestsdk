@@ -5313,9 +5313,570 @@ operator size_t() const SAFEINT_CPP_THROW
 
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
+template <typename P>
+SafeInt<ptrdiff_t, SafeIntDefaultExceptionHandler> SafePtrDiff(const P* p1, const P* p2) SAFEINT_CPP_THROW
+{
+	return SafeInt<ptrdiff_t, SafeIntDefaultExceptionHandler>(p1 - p2);
+}
 
+template <typename T, typename U, typename E>
+bool operator < (U lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)rhs, lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator < (SafeInt<T,E> lhs, U rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<U, T, ValidComparison<U, T>::method>::GreaterThan(rhs, (T)lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator < (SafeInt<U,E> lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)rhs, (U)lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator <= (U lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)rhs, lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator <= (SafeInt<T,E> lhs, U rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<U, T, ValidComparison<U, T>::method>::GreaterThan(rhs, (T)lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator <= (SafeInt<U,E> lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)rhs, (U)lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator > (U lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<U, T, ValidComparison<U, T>::method>::GreaterThan(lhs, (T)rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator > (SafeInt<T,E> lhs, U rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)lhs, rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator > (SafeInt<T,E> lhs, SafeInt<U,E> rhs) SAFEINT_NOTHROW
+{
+	return GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)lhs, (U)rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator >= (U lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<U, T, ValidComparison<U, T>::method>::GreaterThan(lhs, (T)rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator >= (SafeInt<T,E> lhs, U rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)lhs, rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator >= (SafeInt<T,E> lhs, SafeInt<U,E> rhs) SAFEINT_NOTHROW
+{
+	return !GreaterThanTest<T, U, ValidComparison<T, U>::method>::GreaterThan((T)lhs, (U)rhs);
+}
+
+template <typename T, typename E>
+bool operator ==(bool lhs, SafeInt<T, E> rhs) SAFEINT_NOTHROW
+{
+	return lhs == ((T)rhs == 0 ? false : true);
+}
+
+template <typename T, typename E>
+bool operator ==(SafeInt<T,E> lhs, bool rhs) SAFEINT_NOTHROW
+{
+	return rhs == ((T)lhs == 0 ? false : true);
+}
+
+template <typename T, typename U, typename E>
+bool operator ==(U lhs, SafeInt<T,E>rhs) SAFEINT_NOTHROW
+{
+	return EqualityTest<T, U, ValidComparison<T,U>::method>::IsEquals((T)rhs, lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator ==(SafeInt<T,E>lhs, U rhs) SAFEINT_NOTHROW
+{
+	return EqualityTest<T, U, ValidComparison<T,U>::method>::IsEquals((T)lhs, rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator ==(SafeInt<T,E>lhs, SafeInt<U,E> rhs) SAFEINT_NOTHROW
+{
+	return EqualityTest<T, U, ValidComparison<T,U>::method>::IsEquals((T)lhs, (U)rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator != (U lhs, SafeInt<T, E> rhs) SAFEINT_NOTHROW
+{
+	return !EqualityTest<T, U, ValidComparison<T, U>::method>::IsEquals((T)rhs, lhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator != (SafeInt<T,E> lhs, U rhs) SAFEINT_NOTHROW
+{
+	return !EqualityTest<T, U, ValidComparison<T, U>::method>::IsEquals((T)lhs, rhs);
+}
+
+template <typename T, typename U, typename E>
+bool operator != (SafeInt<T,E> lhs, SafeInt<U, E> rhs) SAFEINT_NOTHROW
+{
+	return !EqualityTest<T, U, ValidComparison<T, U>::method>::IsEquals(lhs, rhs);
+}
+
+template <typename T, typename E>
+bool operator != (bool lhs, SafeInt<T,E> rhs) SAFEINT_NOTHROW
+{
+	return ((T)rhs == 0 ? false : true) != lhs;
+}
+
+template <typename T, typename E>
+bool operator != (SafeInt<T, E> lhs, bool rhs) SAFEINT_NOTHROW
+{
+	return ((T)lhs == 0 ? false : true) != rhs;
+}
+
+template <typename T, typename U, typename E, int method> class ModulusSimpleCaseHelper;
+template <typename T, typename E, int method> class ModulusSignedCaseHelper;
+template <typename T, typename E> class ModulusSignedCaseHelper <T, E, true>
+{
+public:
+	static bool SignedCase(SafeInt<T,E> rhs, SafeInt<T, E>& result) SAFEINT_NOTHROW
+	{
+		if ((T)rhs == (T)-1)
+		{
+			result = 0;
+			return true;
+		}
+		return false;
+	}
+};
+
+template <typename T, typename E> class ModulusSignedCaseHelper <T, E, false>
+{
+public:
+	static bool SignedCase( SafeInt<T,E>, SafeInt<T,E>&) SAFEINT_NOTHROW
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E>
+class ModulusSimpleCaseHelper <T,U,E,true>
+{
+public:
+	static bool ModulusSimpleCase(U lhs, SafeInt<T,E> rhs, SafeInt<T,E>& result) SAFEINT_CPP_THROW
+	{
+		if (rhs != 0)
+		{
+			if (ModulusSignedCaseHelper<T,E,IntTraits<T>::isSigned>::SignedCase(rhs, result))
+				return true;
+
+			result = SafeInt<T,E>((T)(lhs % (T)rhs));
+			return true;
+		}
+		E::SafeIntOnDivZero();
+	}
+};
+
+template <typename T, typename U, typename E>
+class ModulusSimpleCaseHelper<T, U, E, false>
+{
+public:
+	static bool ModulusSimpleCase(U, SafeInt<T,E>, SafeInt<T,E>&) SAFEINT_NOTHROW
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E>
+SafeInt<T, E> operator %(U lhs, SafeInt<T,E> rhs) SAFEINT_CPP_THROW
+{
+	SafeInt<T,E> result;
+	if (ModulusSimpleCaseHelper <T,U,E,
+		sizeof(T) == sizeof(U) && (bool)IntTraits<T>::isSigned == (bool)IntTraits<U>::isSigned>::ModulusSimpleCase(lhs,rhs,result))
+		return result;
+	return SafeInt<T,E>((SafeInt<U,E>(lhs) % (T)rhs));
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator *(U lhs, SafeInt<T,E> rhs) SAFEINT_CPP_THROW
+{
+	T ret(0);
+	MultiplicationHelper<T, U, MultiplicationMethod<T,U>::method>::template MultiplyThrow<E>((T)rhs, lhs, ret);
+	return SafeInt<T,E>(ret);
+}
+
+template <typename T, typename U, typename E, int method> class DivisionNegativeCornerCaseHelper;
+template <typename T, typename U, typename E> class DivisionNegativeCornerCaseHelper <T, U, E, true>
+{
+public:
+	static bool NegativeCornerCase(U lhs, SafeInt<T, E> rhs, SafeInt<T, E>& result) SAFEINT_CPP_THROW
+	{
+		U tmp;
+		if(CompileConst < sizeof(T) == 4>::Value())
+		{
+			tmp = lhs/(U) (~(unsigned __int32)(T)rhs + 1);
+		}
+		else
+		{
+			tmp = lhs/(U) (~(unsigned __int64)(T)rhs + 1);
+		}
+
+		if (tmp <= (U)IntTraits<T>::maxInt)
+		{
+			result = SafeInt<T, E>((T)(~(unsigned __int64)tmp + 1));
+			return true;
+		}
+
+		T maxT = IntTraits<T>::maxInt;
+		if (tmp == (U)maxT + 1)
+		{
+			T minT = IntTraits<T>::minInt;
+			return true;
+		}
+		E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U, typename E> class DivisionNegativeCornerCaseHelper <T, U, E, false>
+{
+public:
+	static bool NegativeCornerCase(U, SafeInt<T,E>, SafeInt<T,E>&) SAFEINT_NOTHROW
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E, int method> class DivisionCornerCaseHelper;
+template <typename T, typename U, typename E> class DivisionCornerCaseHelper <T, U, E, true>
+{
+public:
+	static bool DivisionCornerCase1(U lhs, SafeInt<T,E> rhs, SafeInt<T,E>& result) SAFEINT_CPP_THROW
+	{
+		if ((T)rhs > 0)
+		{
+			result = SafeInt<T,E>(lhs/(T)rhs);
+			return true;
+		}
+
+		if ((T)rhs != 0)
+		{
+			if (DivisionNegativeCornerCaseHelper<T,U,E,sizeof(U) >= 4 &&
+				sizeof(T) <= sizeof(U)>::NegativeCornerCaseHelper(lhs, rhs, result))
+			{
+				return true;
+			}
+			result = SafeInt<T,E>(lhs/(T)rhs);
+			return true;
+		}
+		E::SafeIntOnOverflow();
+	}
+};
+
+template <typename T, typename U, typename E> class DivisionCornerCaseHelper <T, U, E, false>
+{
+public:
+	static bool DivisionCornerCase1(U, SafeInt<T,E>, SafeInt<T,E>& ) SAFEINT_CPP_THROW
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E, int method> class DivisionCornerCaseHelper2;
+template <typename T, typename U, typename E> class DivisionCornerCaseHelper2 <T, U, E, true>
+{
+public:
+	static bool DivisionCornerCase2(U lhs, SafeInt<T,E> rhs, SafeInt<T,E>& result) SAFEINT_CPP_THROW
+	{
+		if (lhs == IntTraits<U>::minInt && (T)rhs == -1)
+		{
+#if SAFEINT_COMPILER == VISUAL_STUDIO_COMPILER
+#pragma warning(push)
+#pragma warning(disable:4310)
+#endif
+
+            if( CompileConst<sizeof( U ) < sizeof( T )>::Value() )
+                result = SafeInt< T, E >( (T)( -(T)IntTraits< U >::minInt ) );
+            else
+                E::SafeIntOnOverflow();
+
+#if SAFEINT_COMPILER == VISUAL_STUDIO_COMPILER
+#pragma warning(pop)
+#endif
+            return true;
+		}
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E> class DivisionCornerCaseHelper2 <T, U, E, true>
+{
+public:
+	static bool DivisionCornerCase2(U, SafeInt<T,E>, SafeInt<T,E>& ) SAFEINT_CPP_THROW
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U, typename E> SafeInt<T,E> operator /(U lhs, SafeInt<T,E> rhs) SAFEINT_CPP_THROW
+{
+	SafeInt<T,E> result;
+	if (DivisionCornerCaseHelper<T,U,E,(int)DivisionMethod<U,T>::method == (int)DivisionState_UnsignedSigned>::DivisionCornerCase1(lhs,rhs,result))
+	{
+		return result;
+	}
+	if (DivisionCornerCaseHelper2<T,U,E,SafeIntCompare<T,U>::isBothSigned>::DivisionCornerCase2(lhs,rhs,result))
+	{
+		return result;
+	}
+
+	U ret;
+	DivisionHelper<U,T,DivisionMethod<U,T>::method>::template DivideThrow<E>(lhs, (T)rhs, ret);
+	return SafeInt<T,E>(ret);
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator +(U lhs, SafeInt<T,E>rhs) SAFEINT_CPP_THROW
+{
+	T ret(0);
+	AdditionHelper<T,U,AdditionMethod<T,U>::method>::template AdditionThrow<E>((T)rhs, lhs, ret);
+	return SafeInt<T,E>(ret);
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator -(U lhs, SafeInt<T,E>rhs) SAFEINT_CPP_THROW
+{
+	T ret(0);
+	SubtractionHelper<U,T,SubtractionMethod<U,T>::method>::template SubtractThrow<E>(lhs, rhs.Ref(), ret);
+	return SafeInt<T,E>(ret);
+}
+
+template < typename T, typename U, typename E >
+T& operator +=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_CPP_THROW
+{
+    T ret( 0 );
+    AdditionHelper< T, U, AdditionMethod< T, U >::method >::template AdditionThrow< E >( lhs, (U)rhs, ret );
+    lhs = ret;
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator -=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_CPP_THROW
+{
+    T ret( 0 );
+    SubtractionHelper< T, U, SubtractionMethod< T, U >::method >::template SubtractThrow< E >( lhs, (U)rhs, ret );
+    lhs = ret;
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator *=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_CPP_THROW
+{
+    T ret( 0 );
+    MultiplicationHelper< T, U, MultiplicationMethod< T, U >::method >::template MultiplyThrow< E >( lhs, (U)rhs, ret );
+    lhs = ret;
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator /=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_CPP_THROW
+{
+    T ret( 0 );
+    DivisionHelper< T, U, DivisionMethod< T, U >::method >::template DivideThrow< E >( lhs, (U)rhs, ret );
+    lhs = ret;
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator %=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_CPP_THROW
+{
+    T ret( 0 );
+    ModulusHelper< T, U, ValidComparison< T, U >::method >::template ModulusThrow< E >( lhs, (U)rhs, ret );
+    lhs = ret;
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator &=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_NOTHROW
+{
+    lhs = BinaryAndHelper< T, U, BinaryMethod< T, U >::method >::And( lhs, (U)rhs );
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator ^=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_NOTHROW
+{
+    lhs = BinaryXorHelper< T, U, BinaryMethod< T, U >::method >::Xor( lhs, (U)rhs );
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator |=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_NOTHROW
+{
+    lhs = BinaryOrHelper< T, U, BinaryMethod< T, U >::method >::Or( lhs, (U)rhs );
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator <<=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_NOTHROW
+{
+    lhs = (T)( SafeInt< T, E >( lhs ) << (U)rhs );
+    return lhs;
+}
+
+template < typename T, typename U, typename E >
+T& operator >>=( T& lhs, SafeInt< U, E > rhs ) SAFEINT_NOTHROW
+{
+    lhs = (T)( SafeInt< T, E >( lhs ) >> (U)rhs );
+    return lhs;
+}
+
+template <typename T, typename U, typename E>
+T*& operator += (T*& lhs, SafeInt<U,E>rhs) SAFEINT_CPP_THROW
+{
+	// Cast the pointer to a number so we can do arithmetic
+	SafeInt<size_t,E> ptr_val = reinterpret_cast<size_t>(lhs);
+	/*
+	 * 1 - Check that rhs is valid for the type of ptrdiff_t
+	 *     and that multiplying by sizeof(T) does not overflow a ptrdiff_t
+	 * 2 - Add two SafeInts of different types, so unbox the ptr_diff
+	 * 3 - cast the number back to a pointer of the correct type
+	 */
+	lhs = reinterpret_cast<T*>((size_t)(ptr_val + (ptrdiff_t)(SafeInt<ptrdiff_t,E>(rhs) * sizeof(T))));
+	return lhs;
+}
+
+template <typename T, typename U, typename E>
+T*& operator -=(T*& lhs, SafeInt<U,E>rhs) SAFEINT_CPP_THROW
+{
+	SafeInt<size_t, E> ptr_val = reinterpret_cast<size_t>(lhs);
+	lhs = reinterpret_cast<T*>((size_t)(ptr_val - (ptrdiff_t)(SafeInt<ptrdiff_t,E>(rhs) * sizeof(T))));
+	return lhs;
+}
+
+template < typename T, typename U, typename E >
+T*& operator *=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator /=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator %=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator &=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator ^=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator |=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator <<=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template < typename T, typename U, typename E >
+T*& operator >>=( T*& lhs, SafeInt< U, E > ) SAFEINT_NOTHROW
+{
+    // This operator explicitly not supported
+    C_ASSERT( sizeof(T) == 0 );
+    return (lhs = NULL);
+}
+
+template <typename T, typename U, typename E>
+SafeInt<U,E> operator << (U lhs, SafeInt<T,E> bits) SAFEINT_NOTHROW
+{
+	ShiftAssert(!IntTraits<T>::isSigned || (T)bits >= 0);
+	ShiftAssert((T)bits < (int)IntTraits<U>::bitCount);
+	return SafeInt<U,E>((U)(lhs << (T)bits));
+}
+
+template <typename T, typename U, typename E>
+SafeInt<U,E> operator >> (U lhs, SafeInt<T,E> bits) SAFEINT_NOTHROW
+{
+	ShiftAssert(!IntTraits<T>::isSigned || (T)bits >= 0);
+	ShiftAssert((T)bits < (int)IntTraits<U>::bitCount);
+	return SafeInt<U,E>((U)(lhs >> (T)bits));
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator &(U lhs, SafeInt<T,E>rhs) SAFEINT_NOTHROW
+{
+	return SafeInt<T,E>(BinaryAndHelper<T,U,BinaryMethod<T,U>::method>::And((T)rhs,lhs));
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator ^(U lhs, SafeInt<T,E>rhs) SAFEINT_NOTHROW
+{
+	return SafeInt<T,E>(BinaryXorHelper<T,U,BinaryMethod<T,U>::method>::Xor((T)rhs,lhs));
+}
+
+template <typename T, typename U, typename E>
+SafeInt<T,E> operator |(U lhs, SafeInt<T,E>rhs) SAFEINT_NOTHROW
+{
+	return SafeInt<T,E>(BinaryOrHelper<T,U,BinaryMethod<T,U>::method>::Or((T)rhs,lhs));
+}
+
+#if SAFEINT_COMPILER == GCC_COMPILER
+#pragma GCC diagnostic pop
+#endif
+
+#if SAFEINT_COMPILER == CLANG_COMPILER
+#pragma clang diagnostic pop
+#endif
 
 }
 }
-
+	
 #endif /* INCLUDE_CPPREST_DETAILS_SAFEINT3_HPP_ */
