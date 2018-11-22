@@ -80,7 +80,7 @@ namespace pplx
 			void reset()
 			{
 				cpprest_synchronization::lock_guard<cpprest_synchronization::mutex> lock(_lock);
-				_signaled _ false;
+				_signaled = false;
 			}
 
 			unsigned int wait(unsigned int timeout)
@@ -93,9 +93,9 @@ namespace pplx
 				}
 				else
 				{
-					cpprest_synchronization::chrone::milliseconds period(timeout);
+					cpprest_synchronization::chrono::milliseconds period(timeout);
 					auto status = _condition.wait_for(lock, period, [this]() -> bool {return _signaled; });
-					ASSERTE(status == _signaled);
+					_ASSERTE(status == _signaled);
 					return status ? 0 : event_impl::timeout_infinite;
 				}
 			}
@@ -106,16 +106,16 @@ namespace pplx
 			}
 		};
 
-		class reader_write_lock_impl
+		class reader_writer_lock_impl
 		{
 		private:
-			pthread_rwlock_t _M_read_write_lock;
+			pthread_rwlock_t _M_reader_writer_lock;
 
 		public:
 			class scoped_lock_read
 			{
 			public:
-				explicit scoped_lock_read(reader_writer_lock_impl &_Reader_write_lock) : _M_reader_writer_lock(_Reader_writer_lock)
+				explicit scoped_lock_read(reader_writer_lock_impl &_Reader_writer_lock) : _M_reader_writer_lock(_Reader_writer_lock)
 				{
 					_M_reader_writer_lock.lock_read();
 				}
@@ -125,7 +125,7 @@ namespace pplx
 				}
 
 			private:
-				reader_writer_lock_impl &_M_reader_writer_lock;
+				reader_writer_lock_impl& _M_reader_writer_lock;
 				scoped_lock_read(const scoped_lock_read&);
 				scoped_lock_read const & operator=(const scoped_lock_read&);
 			};
@@ -135,7 +135,7 @@ namespace pplx
 				pthread_rwlock_init(&_M_reader_writer_lock, nullptr);
 			}
 
-			~reader_write_lock_impl()
+			~reader_writer_lock_impl()
 			{
 				pthread_rwlock_destroy(&_M_reader_writer_lock);
 			}
@@ -165,8 +165,8 @@ namespace pplx
 
 			~recursive_lock_impl()
 			{
-				_ASSERT(_M_owner == -1);
-				_ASSERT(_M_recursionCount == 0);
+				_ASSERTE(_M_owner == -1);
+				_ASSERTE(_M_recursionCount == 0);
 			}
 
 			void lock()
@@ -186,11 +186,11 @@ namespace pplx
 
 			void unlock()
 			{
-				__ASSERT(_M_owner == ::pplx::details::platform::GetCurrentThreadId());
-				__ASSERT(_M_recursionCount >= 1);
+				_ASSERTE(_M_owner == ::pplx::details::platform::GetCurrentThreadId());
+				_ASSERTE(_M_recursionCount >= 1);
 
 				_M_recursionCount--;
-				
+
 				if (_M_recursionCount == 0)
 				{
 					_M_owner = -1;
