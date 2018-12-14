@@ -179,6 +179,111 @@ namespace pplx
   {
       throw task_canceled(); 
   }
+  
+  namespace details
+  {
+      /**
+       * Callstack container is used to capture and preserve callstacks in ppltasks.
+       * Members of this class is examined by vc debugger, there will be no public access methods
+      */
+     class _TaskCreationCallstack
+     {
+         private:
+         void *_M_SingleFrame;
+         std::vector<void*> _M_frames;
+         public:
+         _TaskCreationCallstack()
+         {
+             _M_SingleFrame = nullptr;
+         }
+
+         // Store one of frame of callstack.
+         static _TaskCreationCallstack _CaptureSingleFrameCallstack(void * _SingleFrame)
+         {
+             _TaskCreationCallstack _csc;
+             _csc._M_SingleFrame = _SingleFrame;
+             return _csc;
+         }
+
+         // Capture _CaptureFrames number of callstack frames. 
+         __declspec(noinline)
+         static _TaskCreationCallstack _CaptureMutilFrameCallstack(size_t _CaptureFrames)
+         {
+             _TaskCreationCallstack _csc;
+             _csc._M_frames.resize(_CaptureFrames);
+             _csc._M_frames.resize(::pplx::details::platform::CaptureCallstack(&_csc._M_frames[0], 2, _CaptureFrames));
+             return _csc;
+         }
+     };
+     typedef unsigned char _Unit_type;
+
+     struct _TypeSelectorNoAsync {};
+     struct _TypeSelectorAsyncOperationOrTask{};
+     struct _TypeSelectorAsyncOperation : public _TypeSelectorAsyncOperationOrTask {};
+     struct _TypeSelectorAsyncTask : public _TypeSelectorAsyncOperationOrTask {};
+     struct _TypeSelectorAsyncAction {};
+     struct _TypeSelectorAsyncActionWithProgress {};
+     struct _TypeSelectorAsyncOperationWithProgress {};
+
+     template <typename _Ty>
+     struct _NormalizeVoidToUnitType
+     {
+         typedef _Ty _Type;
+     };
+
+     template <>
+     struct _NormalizeVoidToUnitType<void>
+     {
+         typedef _Unit_type _Type;
+     };
+
+     template <typename _T>
+     struct _IsUnwrappedAsyncSelector 
+     {
+         static const bool _Value = true;
+     };
+
+     template <>
+     struct _IsUnwrappedAsyncSelector<_TypeSelectorNoAsync>
+     {
+         static const bool _Value = false;
+     };
+
+     template <typename _Ty>
+     struct _UnwrapTaskType
+     {
+         typedef _Ty _Type;
+     };
+
+     template <typename _Ty>
+     struct _UnwrapTaskType<task<_Ty>>
+     {
+         typedef _Ty _Type;
+     };
+
+     template <typename _T>
+     _TypeSelectorAsyncTask _AsyncOperationKindSelector(task<_T>);
+
+     _TypeSelectorAsyncTask _AsyncOperationKindSelector(...);
+
+     #if defined(__cplusplus_winrt)
+     template <typename _Type>
+     struct _Unhat
+     {
+         typedef _Type _Value;
+     };
+
+     template <typename _Type>
+     struct _Unhat<_Type^>
+     {
+         typedef _Type _Value;
+     };
+
+     value struct _NonUserType {public: int _Dummy; };
+
+     
+     #endif
+  }  
 
 }
 
