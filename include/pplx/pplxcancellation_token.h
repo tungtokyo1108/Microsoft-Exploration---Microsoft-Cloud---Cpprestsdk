@@ -1,6 +1,6 @@
 /*
  * pplxcancellation_token.h
- * https://github.com/PowerShell/cpprestsdk/blob/dev/Release/include/pplx/pplxcancellation_token.h
+ * https://github.com/Microsoft/cpprestsdk/blob/master/Release/include/pplx/pplxcancellation_token.h
  *
  *  Created on: Nov 19, 2018
  *      Student (MIG Virtual Developer): Tung Dang
