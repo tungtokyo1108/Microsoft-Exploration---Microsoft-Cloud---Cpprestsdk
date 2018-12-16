@@ -1,6 +1,6 @@
 /*
  * pplxtasks.h
- * https://github.com/PowerShell/cpprestsdk/blob/dev/Release/include/pplx/pplxtasks.h
+ * https://github.com/Microsoft/cpprestsdk/blob/master/Release/include/pplx/pplxtasks.h
  *
  *  Created on: Nov 22, 2018
  *      Student (MIG Virtual Developer): Tung Dang
@@ -179,7 +179,7 @@ namespace pplx
   {
       throw task_canceled(); 
   }
-  
+
   namespace details
   {
       /**
@@ -281,12 +281,244 @@ namespace pplx
 
      value struct _NonUserType {public: int _Dummy; };
 
-     
+     template <typename _Type, bool _IsValueTypeOrRefType = __is_valid_winrt_type(_Type)>
+     struct _ValueTypeOrRefType
+     {
+         typedef _NonUserType _Value;
+     };
+
+     template <typename _Type>
+     struct _ValueTypeOrRefType<_Type, true>
+     {
+         typedef _Type _Value;
+     };
+
+     template <typename _T1, typename _T2>
+     _T2 _ProgressTypeSelector(Window::Foundation::IAsyncOperationWithProgress<_T1,_T2>^);
+
+     template <typename _T1>
+     _T1 _ProgressTypeSelector(Window::Foundation::IAsyncOperationWithProgress<_T1>^);
+
+     template <typename _Type>
+     struct _GetProcessType 
+     {
+         typedef decltype(_ProcessTypeSelector(stdx::declval<_Type>())) _Value;
+     };
+
+     template <typename _Type>
+     struct _IsIAsyncInfor
+     {
+         static const bool _Value = __is_base_of(Windows::Foundation::IAsyncInfo, typename _Unhat<_Type>::_Value);
+     };
+
+     template <typename _T>
+     _TypeSelectorAsyncOperation _AsyncOperationKindSelector(Window::Foundation::IAsyncOperation<_T>^);
+     _TypeSelectorAsyncAction _AsyncOperationKindSelector(Windows::Foundation::IAsyncAction^);
+
+     template <typename _T1, typename _T2>
+     _TypeSelectorAsyncOperationWithProgress _AsyncOperationKindSelector(Windows::Foundation::IAsyncOperationWithProgress<_T1, _T2>^);
+
+     template <typename _T>
+     _TypeSelectorAsyncActionWithProgress _AsyncOperationKindSelector(Windows::Foundation::IAsyncActionWithProgress<_T>^);
+
+     template <typename _Type, bool _IsAsync = _IsIAsyncInfo<_Type>::_Value>
+     struct _TaskTypeTraits
+     {
+         typedef typename _UnwrapTaskType<_Type>::_Type _TaskRetType;
+         typedef decltype(_AsyncOperationKindSelector(stdx::declval<_Type>())) _AsyncKind;
+         typedef typename _NormalizeVoidToUnitType<_TaskRetType>::_Type _NormalizedTaskRetType;
+
+         static const bool _IsAsyncTask = _IsAsync;
+         static const bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
+     };
+
+     template <typename _Type>
+     struct _TaskTypeTraits<_Type, true>
+     {
+         typedef decltype(((_Type)nullptr)->GetResults()) _TaskRetType;
+         typedef _TaskRetType _NormalizedTaskRetType;
+         typedef decltype(_AsyncOperationKindSelector((_Type)nullptr)) _AsyncKind;
+     };
+
+     #else 
+     template <typename _Type>
+     struct _IsIAsyncInfo 
+     {
+         static const bool _Value = false;
+     };
+
+     template <typename _Type, bool _IsAsync = false>
+     struct _TaskTypeTraits
+     {
+         typedef typename _UnwrapTaskType<_Type>::_Type _TaskRetType;
+         typedef decltype(_AsyncOperationKindSelector(stdx::declval<_Type>())) _AsyncKind;
+         typedef typename _NormalizeVoidToUintType<_TaskRetType>::_Type _NormalizedTaskRetType;
+
+         static const bool _IsAsyncTask = false;
+         static const bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
+     };
      #endif
-  }  
+
+     template <typename _Function>
+     auto _IsCallable(_Function _Func, int)->decltype(_Func(), std::true_type())
+     {
+         (void)(_Func);
+         return std::true_type();
+     }
+
+     template <typename _Function>
+     std::false_type _IsCallable(_Function, ...) 
+     {
+         return std::false_type();
+     }
+
+     template <>
+     struct _TaskTypeTraits<void>
+     {
+         typedef void _TaskRetType;
+         typedef _TypeSelectorNoAsync _AsyncKind;
+         typedef _Unit_type _NormalizedTaskRetType;
+
+         static const bool _IsAsyncTask = false;
+         static const bool _IsUnwrappedTaskOrAsync = false;
+     };
+
+     template <typename _Type>
+     task<_Type> _To_task(_Func f);
+
+     struct _BadContinuationParamType{};
+
+     template <typename _Function, typename _Type> 
+     auto _ReturnTypeHelper(_Type t, _Function _Func, int, int) -> decltype(_Func(_To_task(t)));
+     template <typename _Function, typename _Type>
+     auto _ReturnTypeHelper(_Type t, _Function _Func, int, ...) -> decltype(_Func(t));
+     template <typename _Function, typename _Type>
+     auto _ReturnTypeHelper(_Type t, _Function _Func, ...) -> _BadContinuationParamType;
+
+     template <typename _Function, typename _Type> 
+     auto _IsTaskHelper(_Type t, _Function _Func, int, int) ->decltype(_Func(_To_task(t)), std::true_type());
+     template <typename _Function, typename _Type>
+     std::false_type _IsTaskHelper(_Type t, _Function _Func, int, ...);
+
+     template <typename _Function>
+     auto _VoidReturnTypeHelper(_Function _Func, int, int) -> decltype(_Func(_To_task_void(_Func)));
+     template <typename _Function>
+     auto _VoidReturnTypeHelper(_Function _Func, int, ...) -> decltype(_Func());
+
+     template <typename _Function>
+     auto _VoidIsTaskHelper(_Function _Func, int, int) -> decltype(_Func(_To_task_void(_Func)), std::true_type());
+     template <typename _Function>
+     std::false_type _VoidIsTaskHelper(_Function _Func, int, ...);
+
+     template <typename _Function, typename _ExpectedParameterType>
+     struct _FunctionTypeTraits
+     {
+         typedef decltype(_ReturnTypeHelper(stdx::declval<_ExpectedParameterType>(), stdx::declval<_Function>(), 0, 0)) _FuncRetType;
+         typedef decltype(_IsTaskHelper(stdx::declval<_ExpectedParameterType>(), stdx::declval<_Function>(), 0, 0)) _Takes_task;
+     };
+
+     template <typename _Function>
+     struct _FunctionTypeTraits<_Function, void>
+     {
+         typedef decltype(_VoidReturnTypeHelper(stdx::declval<_Function>(), 0, 0)) _FuncRetType;
+         typedef decltype(_VoidIsTaskHelper(stdx::declval<_Function>(), 0, 0)) _Takes_task;
+     };
+
+     template <typename _Function, typename _ReturnType>
+     struct _ContinuationTypeTraits
+     {
+         typedef task<typename _TaskTypeTraits<typename _FunctionTypeTraits<_Function, _ReturnType>::_FuncRetType>::_TaskRetType> _TaskOfType;
+     };
+
+     template <typename _TaskType, typename _FuncRetType>
+     struct _InitFunctorTypeTraits
+     {
+         typedef typename _TaskTypeTraits<_FuncRetType>::_AsyncKind _AsyncKind;
+         static const bool _IsAsyncTask = _TaskTypeTraits<_FuncRetType>::_IsAsyncTask;
+         static const bool _IsUnwrappedTaskOrAsync = _TaskTypeTraits<_FuncRetType>::_IsUnwrappedTaskOrAsync;
+     };
+
+     template <typename T>
+     struct _InitFunctorTypeTraits<T, T>
+     {
+         typedef _TypeSelectorNoAsync _AsyncKind;
+         static const bool _IsAsyncTask = false;
+         static const bool _IsUnwrappedTaskOrAsync = false;
+     };
+
+     struct _TaskProcThunk 
+     {
+         _TaskProcThunk(const std::function<void ()> &_Callback) : 
+         _M_func(_Callback)
+         {}
+
+         static void _pplx_cdecl _Bridge(void* PData)
+         {
+             _TaskProcThunk *_PThunk = reinterpret_cast<_TaskProcThunk *>(_PData);
+             _Holder _ThunkHolder(_PThunk);
+             _PThunk->_M_func();
+         }
+         private:
+         struct _Holder
+         {
+             _Holder(_TaskProcThunk *_PThunk) : _M_pThunk(_PThunk)
+             {}
+
+             ~Holder()
+             {
+                 delete _M_pThunk;
+             }
+
+             _TaskProcThunk * _M_pThunk;
+             private:
+             _Holder& operator=(const _Holder&);
+         };
+         std::function<void()> _M_func;
+         _TaskProcThunk& operator=(const _TaskProcThunk&);
+     };
+
+     /**
+      * Schedule a function with automatic inlining. 
+      * Note that this is "fire and forget" scheduling, which cannot be waited on or canceled after scheduling
+     */
+    static void _ScheduleFuncWithAutoInline(const std::function<void ()> & _Func, _TaskInliningMode_t _InliningMode)
+    {
+        _TaskCollection_t::_RunTask(&_TaskProcThunk::_Bridge, new _TaskProcThunk(_Func), _InliningMode);
+    }
+
+    class _ContextCallback
+    {
+        typedef std::function<void(void)> _CallbackFunction;
+        #if defined(__cplusplus_winrt)
+        public:
+        static _ContextCallback _CaptureCurrent()
+        {
+            _ContextCallback _Context;
+            _Context._Capture();
+            return _Context;
+        }
+
+        ~_ContextCallback()
+        {
+            _Reset();
+        }
+
+        _ContextCallback(bool _DeferCapture = false)
+        {
+            if (_DeferCapture)
+            {
+                _M_context._M_captureMethod = _S_captureDeferred;
+            }
+            else
+            {
+                _M_context._M_pContextCallback = nullptr;
+            }
+        }
+        #endif
+    };
+  }
 
 }
 
 #endif
-
 #endif /* INCLUDE_PPLX_PPLXTASKS_H_ */
