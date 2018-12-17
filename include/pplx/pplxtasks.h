@@ -514,6 +514,51 @@ namespace pplx
                 _M_context._M_pContextCallback = nullptr;
             }
         }
+        
+        void _Resolve(bool _CaptureCurrent)
+        {
+            if (_M_context._M_captureMethod == _S_captureDeferred)
+            {
+                _M_context._M_pContextCallback = nullptr;
+                if (_CaptureCurrent)
+                {
+                    if (_IsCurrentOriginSTA())
+                    {
+                        _Capture();
+                    }
+                    #if _UITHREADCTXT_SUPPORT
+                    else
+                    {
+                        HRESULT _Hr = CaptureUiThreadContext(&_M_context._M_pContextCallback);
+                        if (FAILED(_Hr))
+                        {
+                            _M_context._M_pContextCallback = nullptr;
+                        }
+                    }
+                    #endif
+                }
+            }
+        }
+
+        void _Capture()
+        {
+            HRESULT _Hr = CoGetObjectContext(IID_IContextCallback, reinterpret_cast<void**>(&_M_context._M_pContextCallback));
+            if (FAILED(_Hr))
+            {
+                _M_context._M_pContextCallback = nullptr;
+            }
+        }
+
+        _ContextCallback(const _ContextCallback& _Src)
+        {
+            _Assign(_Src._M_context._M_pContextCallback);
+        }
+
+        _ContextCallback(_ContextCallback&& _Src)
+        {
+            _M_context._M_pContextCallback = _Src._M_context._M_pContextCallback;
+            _Src._M_context._M_pContextCallback = nullptr;
+        }
         #endif
     };
   }
