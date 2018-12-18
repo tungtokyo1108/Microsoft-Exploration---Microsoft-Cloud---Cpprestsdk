@@ -616,6 +616,31 @@ namespace pplx
         {
             return !(operator==(_Rhs));
         }
+        
+        private:
+        void _Reset()
+        {
+            if (_M_context._M_captureMethod != _S_captureDeferred && _M_context._M_pContextCallback != nullptr)
+            {
+                _M_context._M_pContextCallback->Release();
+            }
+        }
+
+        void _Assign(IContextCallback *_PContextCallback)
+        {
+            _M_context._M_pContextCallback = _PContextCallback;
+            if (_M_context._M_captureMethod != _S_captureDeferred && _M_context._M_pContextCallback != nullptr)
+            {
+                _M_context._M_pContextCallback->AddRef();
+            }
+        }
+
+        static HRESULT _stdcall _Bridge(ComCallData *_PParam)
+        {
+            _CallbackFunction *pFunc = reinterpret_cast<_CallbackFunction *>(_PParam->pUserDefined);
+            (*pFunc)();
+            return S_OK;
+        }
         #endif
     };
   }
