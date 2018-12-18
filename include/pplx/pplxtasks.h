@@ -559,6 +559,63 @@ namespace pplx
             _M_context._M_pContextCallback = _Src._M_context._M_pContextCallback;
             _Src._M_context._M_pContextCallback = nullptr;
         }
+        
+        _ContextCallback& operator=(const _ContextCallback& _Src)
+        {
+            if (this != &_Src)
+            {
+                _Reset();
+                _Assign(_Src._M_context._M_pContextCallback);
+            }
+            return *this;
+        }
+
+        _ContextCallback& operator=(_ContextCallback&& _Src)
+        {
+            if (this != &_Src)
+            {
+                _M_context._M_pContextCallback = _Src._M_context._M_pContextCallback;
+                _Src._M_context._M_pContextCallback = nullptr;
+            }
+            return *this;
+        }
+
+        bool _HasCapturedContext() const 
+        {
+            _ASSERTE(_M_context._M_captureMethod != _S_captureDeferred);
+            return (_M_context._M_pContextCallback != nullptr);
+        }
+
+        void _CallInContext(_CallbackFunction _Func) const
+        {
+            if (!_HasCapturedContext())
+            {
+                _Func();
+            }
+            else
+            {
+                ComCallData callData;
+                ZeroMemory(&callData, sizeof(callData));
+                callData.pUserDefined = reinterpret_cast<void *>(&_Func);
+
+                HRESULT _Hr = _M_context._M_pContextCallback->_ContextCallback(&_Bridge, &callData, 
+                IID_ICallbackWithNoReentrancyToApplicationSTA, 5, nullptr);
+                if (FAILED(_Hr))
+                {
+                    throw ::platform::exception::CreateEXception(_Hr);
+                }
+            }
+        }
+
+        bool operator==(const _ContextCallback& _Rhs) const 
+        {
+            return (_M_context._M_pContextCallback == _Rhs._M_context._M_pContextCallback);
+        }
+
+        bool operator!=(const _ContextCallback& _Rhs) const 
+        {
+            return !(operator==(_Rhs));
+        }
         #endif
     };
   }
