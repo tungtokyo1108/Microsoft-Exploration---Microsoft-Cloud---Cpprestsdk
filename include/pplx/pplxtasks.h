@@ -641,6 +641,73 @@ namespace pplx
             (*pFunc)();
             return S_OK;
         }
+        
+        /* Return the origin information for the caller*/
+        static bool _IsCurrentOriginSTA()
+        {
+            APTTYPE _AptType;
+            APTTYPEQUALIFIER _AptTypeQualifier;
+
+            HRESULT hr = CoGetApartmentType(&_AptType, &_AptTypeQualifier);
+            if (SUCCEEDED(hr))
+            {
+                switch(_AptType)
+                {
+                    case APTTYPE_MAINSTA:
+                    case APTTYPE_STA: 
+                    return true;
+                    default: 
+                    break;
+                }
+            }
+            return false;
+        }
+
+        union
+        {
+            IContextCallback *_M_pContextCallback;
+            size_t _M_captureMethod;
+        } _M_context;
+
+        static const size_t _S_captureDeferred = 1;
+        #else
+        public:
+        static _ContextCallback _CaptureCurrent()
+        {
+            return _ContextCallback();
+        }
+        _ContextCallback(bool = false)
+        {}
+        _ContextCallback(const _ContextCallback&)
+        {}
+        _ContextCallback(_ContextCallback&&)
+        {}
+        _ContextCallback& operator=(const _ContextCallback&)
+        {
+            return *this;
+        }
+        _ContextCallback& operator=(_ContextCallback&&)
+        {
+            return *this;
+        }
+        bool _HashCaptureContext() const 
+        {
+            return false;
+        }
+        void _Resolve(bool) const 
+        {}
+        void _CallInContext(_CallbackFunction _Func) const 
+        {
+            _Func();
+        }
+        bool operator==(const _ContextCallback&) const 
+        {
+            return true;
+        }
+        bool operator!=(const _ContextCallback&) const 
+        {
+            return false;
+        }
         #endif
     };
   }
