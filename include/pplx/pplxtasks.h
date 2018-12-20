@@ -710,6 +710,84 @@ namespace pplx
         }
         #endif
     };
+      
+    template <typename _Type>
+    struct _ResultHolder
+    {
+        void Set(const _Type& _type)
+        {
+            _Result = _type;
+        }
+        _Type Get()
+        {
+            return _Result;
+        }
+        _Type _Result; 
+    };
+
+    #if defined (__cplusplus_winrt)
+    template <typename _Type>
+    struct _ResultHolder<_Type^>
+    {
+        void Set(_Type^ const &_type)
+        {
+            _M_Result = _type;
+        }
+
+        _Type^ Get()
+        {
+            return _M_Result.Get();
+        }
+
+        private:
+        ::Platform::Agile<_Type^> _M_Result;
+    };
+
+    /**
+     * The below are for composability with tasks auto-created from when_any 
+    */
+    template <typename _Type>
+    struct _ResultHolder<std::vector<_Type^>>
+    {
+        void Set(const std::vector<_Type^>&_type)
+        {
+            _Result.reserve(_type.size());
+            for (auto _PTask = _type.begin(); _PTask != _type.end(); ++_PTask)
+            {
+                _Result.emplace_back(*_PTask);
+            }
+        }
+
+        std::vector<_Type^> Get()
+        {
+            std::vector<_Type^> _Return;
+            _Return.reverse(_Result.size());
+            for (auto _PTask = _Result.begin(); _PTask != _Result.end(); ++_PTask)
+            {
+                _Return.push_back(_PTask->Get());
+            }
+            return _Return;
+        }
+
+        std::vector<::Platform::Agile<_Type^>> _Result;
+    };
+
+    template <typename _Type>
+    struct _ResultHolder<std::pair<_Type^, void*> >
+    {
+        void Set(const std::pair<_Type*, size_t>&_type)
+        {
+            _M_Result = _type;
+        }
+
+        std::pair<_Type^, size_t> Get()
+        {
+            return std::make_pair(_M_Result.first.Get(), _M_Result.second());
+        }
+        private:
+        std::pair< ::Platform::Agile<_Type^>, size_t> M_Result;
+    };
+    #endif  
   }
 
 }
