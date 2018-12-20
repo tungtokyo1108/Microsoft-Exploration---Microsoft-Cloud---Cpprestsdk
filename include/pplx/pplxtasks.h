@@ -514,7 +514,7 @@ namespace pplx
                 _M_context._M_pContextCallback = nullptr;
             }
         }
-        
+
         void _Resolve(bool _CaptureCurrent)
         {
             if (_M_context._M_captureMethod == _S_captureDeferred)
@@ -559,7 +559,7 @@ namespace pplx
             _M_context._M_pContextCallback = _Src._M_context._M_pContextCallback;
             _Src._M_context._M_pContextCallback = nullptr;
         }
-        
+
         _ContextCallback& operator=(const _ContextCallback& _Src)
         {
             if (this != &_Src)
@@ -616,7 +616,7 @@ namespace pplx
         {
             return !(operator==(_Rhs));
         }
-        
+
         private:
         void _Reset()
         {
@@ -641,7 +641,7 @@ namespace pplx
             (*pFunc)();
             return S_OK;
         }
-        
+
         /* Return the origin information for the caller*/
         static bool _IsCurrentOriginSTA()
         {
@@ -710,7 +710,7 @@ namespace pplx
         }
         #endif
     };
-      
+
     template <typename _Type>
     struct _ResultHolder
     {
@@ -787,7 +787,7 @@ namespace pplx
         private:
         std::pair< ::Platform::Agile<_Type^>, size_t> M_Result;
     };
-    #endif  
+    #endif
   }
 
 }
