@@ -788,6 +788,85 @@ namespace pplx
         std::pair< ::Platform::Agile<_Type^>, size_t> M_Result;
     };
     #endif
+      
+    /**
+     * An exception thrown by the task body is captured in an exception holder 
+     * and it is shared with all value based continuations rooted at the task. 
+     * 
+     * The exception is observed if the user invokes get()/wait() on any of the tasks that are sharing this exception holder.
+     * If the exception is not observed by the time the internal object owned by the shared pointer destructs, the process will fail.
+     */
+    struct _ExceptionHolder 
+    {
+        private: 
+        void ReportUnhandleError()
+        {
+            #if _MSC_VER >= 1800 && defined(__cplusplus_winrt)
+            if (_M_winRTException != nullptr)
+            {
+                ::Platform::Details::ReportUnhandleError(_M_winRTException);
+            }
+            #endif
+        }
+        public: 
+        explicit _ExceptionHolder(const std::exception_ptr& _E, const _TaskCreationCallstack &_stackTrace) : 
+            _M_exceptionObserved(0), _M_stdException(_E), _M_stackTrace(_stackTrace) 
+        #if defined(__cplusplus_winrt)
+            , _M_winRTException(nullptr)
+        #endif    
+        {}
+
+        #if defined (__cplusplus_winrt)
+        explicit _ExceptionHolder(::Platform::Exception^ _E, const _TaskCreationCallstack &_stackTrace) : 
+            _M_exceptionObserved(0), _M_winRTException(_E), _M_stackTrace(_stackTrace)
+            {}
+        #endif
+
+        __declspec(noinline)
+        ~_ExceptionHolder()
+        {
+            /**
+             * If you are trapped here, it means an exception thrown in task chain didn't get handled.
+             * Please add task-based continuation to handle all exceptions coming from tasks.
+            */
+           if (_M_exceptionObserved == 0)
+           {
+               _REPORT_PPLTASK_UNOBSERVED_EXCEPTION();
+           }
+        }
+
+        void _RethrowUserException()
+        {
+            if (_M_exceptionObserved == 0)
+            {
+                atomic_exchange(_M_exceptionObserved, 1l);
+            }
+
+        #if defined(__cplusplus_winrt)
+            if (_M_winRTException != nullptr)
+            {
+                throw _M_winRTException;
+            }
+        #endif
+            std::rethrow_exception(_M_stdException);
+        }
+
+        /**
+         * A variable that remembers if this exception was every rethrown into user code. 
+         * Exceptions are unobserved when the exception holder is destructed will terminate the process.
+        */
+       atomic_long _M_exceptionObserved;
+
+       /**
+        * Either _M_stdException or _M_winRTException is populated based on the type of exception encoutered 
+       */
+      std::exception_ptr _M_stdException;
+      #if defined (__cplusplus_winrt)
+      ::Platform::Exception^ _M_winRTException;
+      #endif
+
+      _TaskCreationCallstack _M_stackTrace;
+    };  
   }
 
 }
