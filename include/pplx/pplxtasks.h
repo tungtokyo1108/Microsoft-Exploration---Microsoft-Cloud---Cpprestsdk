@@ -867,6 +867,109 @@ namespace pplx
 
       _TaskCreationCallstack _M_stackTrace;
     };  
+    
+    /*******************************************************************************
+     ************************ Converting Operations ********************************* 
+    ********************************************************************************/
+    #if defined(__cplusplus_winrt)
+    /**
+     * Base convert class for converting asynchronous interfaces to IAsyncOperation
+    */
+    template <typename _AsyncOperationType, typename _CompletionHandlerType, typename _Result>
+    ref struct _AsyncInfoImpl abstract : Windows::Foundation::IAsyncOperation<_Result>
+    {
+        internal : 
+        /**
+         * The async action, action with progress or operation with progress that this stub forward to
+        */
+        ::Platform::Agile<_AsyncOperationType>
+            _M_asyncInfo;
+
+        Windows::Foundation::AsyncOperationCompleteHandler<_Result> ^ _M_CompletedHandler;
+        _AsyncInfoImpl(_AsyncOperationType _AsyncInfo) : _M_asyncInfo(_AsyncInfo) {}  
+
+        public: 
+        virtual void Cancel() 
+        {
+            _M_asyncInfo.Get()->Cancel();
+        }  
+        virtual void Close() 
+        {
+            _M_asyncInfo.Get()->Close();
+        }
+
+        virtual property Windows::Foundation::HResult ErrorCode
+        {
+            Windows::Foundation::HResult get() {return _M_asyncInfo.Get()->ErrorCode;}
+        }
+
+        virtual property UINT Id  
+        {
+            UINT get() {return _M_asyncInfo.Get()->Id;}
+        }
+
+        virtual property Windows::Foundation::AsyncStatus Status 
+        {
+            Windows::Foundation::AsyncStatus get() {return _M_asyncInfo.Get()->Status;}
+        }
+
+        virtual _Result GetResults() 
+        {
+            throw std::runtime_error("derived class must implement");
+        }
+
+        virtual property Windows::Foundation::AsyncOperationCompletedHandler<_Result> ^ Completed {
+            Windows::Foundation::AsyncOperationCompletedHandler<_Result> ^ get() {return _M_CompletedHandler;}
+            void set(Windows::Foundation::AsyncOperationCompletedHandler<_Result> ^ value)
+            {
+                _M_CompletedHandler = value;
+                _M_asyncInfo.Get()->Completed = 
+                    ref new _CompletionHandlerType([&](_AsyncOperationType, Windows::Foundation::AsyncStatus status) {
+                        _M_CompletedHandler->Invoke(this, status);
+                    });
+            }
+        }
+    };
+
+    /**
+     * Class is used to convert an instance of IAsyncOperationWithProgress into IAsyncOperation
+    */
+    template <typename _Result, typename _Progress>
+    ref struct _IAsyncOperationWithProgressToAsyncOperationConverter sealed 
+        : _AsyncInfoImpl<Windows::Foundation::IAsyncOperationWithProgress<_Result,_Progress> ^ 
+        , Windows::Foundation::AsyncOperationWithProgressCompletedHandler<_Result, _Progress>, _Result>
+    {
+        internal : _IAsyncOperationWithProgressToAsyncOperationConverter(
+            Windows::Foundation::IAsyncOperationWithProgress<_Result, _Progress> ^ _Operation)
+        : _AsyncInfoImpl<Windows::Foundation::IAsyncOperationWithProgress<_Result, _Progress> ^, 
+           Windows::Foundation::AsyncOperationWithProgressCompletedHandler<_Result, _Progress> ,
+           _Result>(_Operation)
+        {}
+
+        public: 
+        virtual _Result GetResults() override {return _M_asyncInfo.Get()->GetResults();}  
+    };
+
+    /**
+     * Class is used to convert an instance of IAsyncAction into IAsyncOperation<_Uint_type>
+    */
+    ref struct _IAsyncActionToAsyncOperationConverter sealed 
+        : _AsyncInfoImpl<Windows::Foundation::IAsyncAction ^ 
+                    , Windows::Foundation::AsyncActionCompletedHandler, details::_Unit_type>
+    {
+        internal : _IAsyncActionToAsyncOperationConverter(Windows::Foundation::IAsyncAction ^ _Operation) 
+            : _AsyncInfoImpl<Windows::Foundation::IAsyncAction ^ 
+            , Windows::Foundation::AsyncActionCompletedHandler, details::_Unit_type>(_Operation)
+        {}
+
+        public: 
+        virtual details::_Unit_type GetResults() override 
+        {
+            _M_asyncInfo.Get()->GetResults();
+            return details::_Unit_type();
+        }
+    };
+    #endif  
   }
 
 }
