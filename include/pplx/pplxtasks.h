@@ -969,6 +969,32 @@ namespace pplx
             return details::_Unit_type();
         }
     };
+      
+    /**
+     * Class is used to convert an instance of IAsyncActionWithProgress into IAsyncOperation
+    */
+    template <typename _Progress>
+    ref struct _IAsyncActionWithProgressToAsyncOperationConverter sealed 
+        : _AsyncInfoImpl<Windows::Foundation::IAsyncActionWithProgress<_Progress> ^ 
+        , Windows::Foundation::AsyncActionWithProgressCompletedHandler<_Progress>, 
+            details::_Unit_type>
+    {
+        internal 
+            : _IAsyncActionWithProgressToAsyncOperationConverter(Windows::Foundation::IAsyncActionWithProgress<_Progress> ^ 
+                                                                    _Action)
+            : _AsyncInfoImpl<Windows::Foundation::IAsyncActionWithProgress<_Progress> ^, 
+            Windows::Foundation::AsyncActionWithProgressCompletedHandler<_Progress>, 
+            details::_Unit_type(_Action)>
+        {}
+
+        public:
+        virtual details::_Unit_type GetResults() override 
+        {
+            _M_asyncInfo.Get()->GetResults();
+            return details::_Unit_type();
+        }
+    };
+    /*******************************************************************************/  
     #endif  
   }
 
