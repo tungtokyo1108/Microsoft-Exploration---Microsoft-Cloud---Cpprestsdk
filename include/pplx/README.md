@@ -1,3 +1,5 @@
+#Competitors' approaches 
+
 Intel 
 - TBB: https://github.com/tungtokyo1108/Intel-Exploration---Parallel-Programming---TBB
 
