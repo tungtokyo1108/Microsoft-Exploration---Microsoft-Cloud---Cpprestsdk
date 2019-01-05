@@ -997,6 +997,65 @@ namespace pplx
     /*******************************************************************************/  
     #endif  
   }
+    
+  /**
+   * Task_continuation_context class allows you to specific 
+   * where you would like a continuation to be executed. 
+   * Useful for Window Store app.
+   * For non-Windows Store app, the task continuation's execution context is determined by runtime 
+  */
+  class task_continuation_context : public details::_ContextCallback
+  {
+        public: 
+        static task_continuation_context use_default()
+    {
+        #if defined(__cplusplus_winrt)
+        // The callback context is created with the context set to CaptureDeferred and resolved when it is used in
+        // .then()
+        return task_continuation_context(
+            true); // sets it to deferred, is resolved in the constructor of _ContinuationTaskHandle
+        #else  /* defined (__cplusplus_winrt) */
+        return task_continuation_context();
+        #endif /* defined (__cplusplus_winrt) */
+    }
+
+        #if defined(__cplusplus_winrt)
+        static task_continuation_context use_arbitrary()
+        {
+            task_continuation_context _Arbitrary(true);
+            _Arbitrary._Resolve(false);
+            return _Arbitrary;
+        }
+        static task_continuation_context use_current()
+        {
+            task_continuation_context _Current(true);
+            _Current._Resolve(true);
+            return _Current;
+        }
+        #endif
+
+        private: 
+        task_continuation_context(bool _DeferCapture = false) : details::_ContextCallback(_DeferCapture) {}
+  };
+
+  namespace details
+  {
+      struct _Internal_task_options
+      {
+          bool _M_hasPresetCreationCallstack;
+          _TaskCreationCallstack _M_presetCreationCallstack;
+
+          void _set_creation_callstack(const _TaskCreationCallstack& _callstack)
+          {
+            _M_hasPresetCreationCallstack = true;
+            _M_presetCreationCallstack = _callstack;
+          }
+          _Internal_task_options() {_M_hasPresetCreationCallstack = false;}
+      };
+      
+      inline _Internal_task_options& _get_internal_task_options(task_options& options);
+      inline const _Internal_task_options& _get_internal_task_options(const task_options& options);
+  }  
 
 }
 
