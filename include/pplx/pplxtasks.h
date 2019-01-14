@@ -1057,6 +1057,132 @@ namespace pplx
       inline const _Internal_task_options& _get_internal_task_options(const task_options& options);
   }  
 
+  /**
+   * Represents the allowed options for creating a task
+  */
+  class task_options
+  {
+    public: 
+
+        /**
+         * Default list of task creation options
+        */
+        task_options() : 
+            _M_Scheduler(get_ambient_scheduler()),
+            _M_CancellationToken(cancellation_token::none()),
+            _M_ContinuationContext(task_continuation_context::use_default()),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(false)
+        {}
+
+        /**
+         * Task option specific a cancellation token 
+        */
+        task_options(cancellation_token _Token) : 
+            _M_Scheduler(get_ambient_scheduler()),
+            _M_CancellationToken(_Token),
+            _M_ContinuationContext(task_continuation_context::use_default()),
+            _M_HasCancellationToken(true),
+            _M_HasScheduler(false)
+        {}
+
+        /**
+         * Task option specify a continuation context 
+        */
+        task_options(task_continuation_context _ContinuationContext) : 
+            _M_Scheduler(get_ambient_scheduler()),
+            _M_CancellationToken(cancellation_token::none()),
+            _M_ContinuationContext(_ContinuationContext),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(false)
+        {}
+
+        /**
+         * Task option specify a cancellation token and a continuation context
+        */
+        task_options(cancellation_token _Token, task_continuation_context _ContinuationContext) : 
+            _M_Scheduler(get_ambient_scheduler()),
+            _M_CancellationToken(_Token),
+            _M_ContinuationContext(_ContinuationContext),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(false)
+        {}
+
+        /**
+         * Task option specify a scheduler with shared lifetime
+        */
+        template <typename _SchedType>
+        task_options(std::shared_ptr<_SchedType> _Scheduler) : 
+            _M_Scheduler(std::move(_Scheduler)),
+            _M_CancellationToken(cancellation_token::none()),
+            _M_ContinuationContext(task_continuation_context::use_default()),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(true)
+        {}
+
+        /**
+         * Task option specify a scheduler reference 
+        */
+        task_options(scheduler_interface& _Scheduler) : 
+            _M_Scheduler(&_Scheduler),
+            _M_CancellationToken(cancellation_token::none()),
+            _M_ContinuationContext(task_continuation_context::use_default()),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(true)
+        {}
+
+        /**
+         * Task option specify a scheduler 
+        */
+        task_options(scheduler_ptr _Scheduler) : 
+            _M_Scheduler(std::move(_Scheduler)),
+            _M_CancellationToken(cancellation_token::none()),
+            _M_ContinuationContext(task_continuation_context::use_default()),
+            _M_HasCancellationToken(false),
+            _M_HasScheduler(true)
+        {}
+
+        /**
+         * Task option copy constructor 
+        */
+        task_options(const task_options& _TaskOptions) : 
+            _M_Scheduler(_TaskOptions.get_scheduler()),
+            _M_CancellationToken(_TaskOptions.get_cancellation_token()),
+            _M_ContinuationContext(_TaskOptions.get_continuation_context()),
+            _M_HasCancellationToken(_TaskOptions.has_cancellation_token()),
+            _M_HasScheduler(_TaskOptions.has_scheduler())
+        {}
+
+        void set_cancellation_token(cancellation_token _Token)
+        {
+            _M_CancellationToken = _Token;
+            _M_HasCancellationToken = true;
+        }
+
+        void set_continuation_context(task_continuation_context _ContinuationContext)
+        {
+            _M_ContinuationContext = _ContinuationContext;
+        }
+
+        bool has_cancellation_token() const {return _M_hasCancellationToken;}
+        cancellation_token get_cancellation_token() const {return _M_CancellationToken;}
+        task_continuation_context get_continuation_context() const {return _M_ContinuationContext;}
+        bool has_scheduler() const {return _M_HasScheduler;}
+        scheduler_ptr get_scheduler() const {return _M_Scheduler;}
+    
+    private: 
+        task_options const& operator=(task_options const& _Right);
+        friend details::_Internal_task_options& details::_get_internal_task_options(task_options&);
+        friend const details::_Internal_task_options& details::_get_internal_task_options(const task_options);
+
+        scheduler_ptr _M_Scheduler;
+        cancellation_token _M_CancellationToken;
+        task_continuation_context _M_ContinuationContext;
+        details::_Internal_task_options _M_InternalTaskOptions;
+        bool _M_HasCancellationToken;
+        bool _M_HasScheduler;
+  };
+    
 }
 
 #endif
