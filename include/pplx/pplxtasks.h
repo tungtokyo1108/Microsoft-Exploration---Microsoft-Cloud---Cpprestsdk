@@ -1182,6 +1182,19 @@ namespace pplx
         bool _M_HasCancellationToken;
         bool _M_HasScheduler;
   };
+  
+namespace details 
+{
+    inline _Internal_task_options& _get_internal_task_options(task_options& options)
+    {
+        return options._M_InternalTaskOptions;
+    }
+
+    inline const _Internal_task_options& _get_internal_task_options(const task_options& options)
+    {
+        return options._M_InternalTaskOptions;
+    }
+}
     
 }
 
