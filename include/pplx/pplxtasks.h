@@ -1194,6 +1194,46 @@ namespace details
     {
         return options._M_InternalTaskOptions;
     }
+
+    struct _Task_impl_base;
+    template <typename _ReturnType>
+    struct _Task_impl;
+
+    template <typename _ReturnType>
+    struct _Task_ptr
+    {
+        typedef std::shared_ptr<_Task_impl<_ReturnType>> _Type;
+        static _Type _Make(_CancellationTokenState* _Ct, scheduler_ptr _Scheduler_arg)
+        {
+            return std::make_shared<_Task_impl<_ReturnType>>(_Ct, _Scheduler_arg);
+        }
+    };
+    
+    typedef _TaskCollection_t::_TaskProcHandle_t _UnrealizedChore_t;
+    typedef std::shared_ptr<_Task_impl_base> _Task_ptr_base;
+
+    /**
+     * The weak-typed base task handler for continuation tasks
+    */
+    struct _ContinuationTaskHandleBase : _UnrealizedChore_t
+    {
+        _ContinuationTaskHandleBase* _M_next;
+        task_continuation_context _M_continuationContext;
+        bool _M_isTaskBasedContinuation;
+        _TaskInliningMode_t _M_inliningMode;
+        virtual _Task_ptr_base _GetTaskImplBase() const = 0;
+
+        _ContinuationTaskHandleBase() 
+            : _M_next(nullptr)
+            , _M_continuationContext(task_continuation_context::use_default())
+            , _M_isTaskBasedContinuation(false)
+            , _M_inliningMode(details::_NoInline)
+        {
+
+        }
+
+        virtual ~_ContinuationTaskHandleBase() {}
+    };
 }
     
 }
